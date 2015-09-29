@@ -7,12 +7,15 @@ import numpy as np
 import vispy.plot as vp
 from vispy.color import get_colormap
 
+
+
 import sys, struct, time, os, datetime
 import math, re
 from math import *
+
 from pymavlink.mavextra import *
 from pymavlink import mavutil
-
+from numpy import * #needed for sqrt on arrays
 
 colourmap = {
     'apm' : {
@@ -56,12 +59,18 @@ class MavGraphVispy(object):
         self.fig.connect(self.on_mouse_wheel)
         self.linked = False
         self.fields = []
-        self.labels = None
+        self.lables = True
         
     def add_field(self, field):
         '''add another field to plot'''
         self.fields.append(field)
+        
+    def set_cam_link(self, cam):
+        self.plt.camera.link(cam)
     
+    def get_cam(self):
+        return self.plt.camera
+        
     def process(self, block=True):
         '''process and display graph'''
         self.msg_types = set()
@@ -118,28 +127,26 @@ class MavGraphVispy(object):
 #                 self.y[i] = []
 #         pylab.draw()
 
-    def add_data(self, vars):
-        '''add some data'''
+    
+    def set_data(self, vars):
+    
+    
+        cmap = get_colormap('hsl', value=0.5)
+        colors = cmap.map(np.linspace(0.1, 0.9, len(self.fields)))
+        
         for i in range(0, len(self.fields)):
             f = self.fields[i]
             v = evaluate_expression(f, vars)
-            print 'v',v
-
-    
-    def set_data(self, t, data, lables=None):
-        self.t=t
-        self.data = data
-        self.lables = lables
-        # plot data
-        cmap = get_colormap('hsl', value=0.5)
-        colors = cmap.map(np.linspace(0.1, 0.9, self.data.shape[0]))
-        
-        for i, y in enumerate(self.data):
-            line = self.plt.plot((self.t, y), color=colors[i])
+            x = range(len(v))
+            line = self.plt.plot((x, v), color=colors[i])
             line.interactive = True
             line.unfreeze()  # make it so we can add a new property to the instance
             line.data_index = i
+            line.x = x
+            line.y = v
+            line.label=f
             line.freeze()
+            
         
         
         # Build visuals used for cursor
@@ -180,29 +187,26 @@ class MavGraphVispy(object):
             self.cursor_line.visible = False
             self.cursor_symbol.visible = False
         else:
-            # get data for the selected trace
-            trace = self.data[self.selected.data_index]
-            
+
             # map the mouse position to data coordinates
             tr = self.fig.scene.node_transform(self.selected)
             pos = tr.map(pos)
-            
+
             # get interpolated y coordinate
             x_cur = pos[0]
             
           
-            i = find_nearest(self.t,x_cur)
+            i = find_nearest(self.selected.x,x_cur)
             
-            x = self.t[i]
-            y = trace[i]
+            x = self.selected.x[i]
+            y = self.selected.y[i]
             
             # update cursor
             if self.lables:
-                data_label= self.lables[self.selected.data_index]
-                self.cursor_text.text = "%s: x=%0.2f, y=%0.2f" % (data_label,x, y)
+                self.cursor_text.text = "%s: x=%0.2f, y=%0.2f" % (self.selected.label,x, y)
             else:
-                self.cursor_text.text = "%i: x=%0.2f, y=%0.2f" % (self.selected.data_index,x, y)
-            offset = np.diff(tr.map([[0, 0], [10, 0]]), axis=0)[0, 0]
+                self.cursor_text.text =  "x=%0.2f, y=%0.2f" % (x, y)
+            offset = np.diff(tr.map([[0, 0], [10, 10]]), axis=0)[0, 0]
             self.cursor_text.pos = x + offset, y
             rect = self.plt.view.camera.rect
             self.cursor_line.set_data(np.array([[x, rect.bottom], [x, rect.top]]))
@@ -214,6 +218,11 @@ class MavGraphVispy(object):
     
     def show(self):
         self.fig.app.run(allow_interactive=True)
+        
+        
+
+        
+        
 
 def find_nearest(array,value):
     idx = (np.abs(array-value)).argmin()
@@ -222,9 +231,15 @@ def find_nearest(array,value):
 def evaluate_expression(expression, vars): #nicked from mavutil
     '''evaluation an expression'''
     try:
-        v = eval(expression, globals(), vars)
+        print expression
+        print vars
+        v =eval(expression, globals(), vars)
+        print sqrt(v)
+        print ""
+        
     except NameError:
         return None
     except ZeroDivisionError:
         return None
     return v
+

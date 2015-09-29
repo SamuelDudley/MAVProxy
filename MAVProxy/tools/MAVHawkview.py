@@ -4,7 +4,6 @@ log analysis program
 based on mavexplorer by Andrew Tridgell 
 Samuel Dudley September 2015
 '''
-import numpy as np
 import sys, struct, time, os, datetime
 import math, re
 import Queue
@@ -25,6 +24,8 @@ import pkg_resources
 
 import numpy as np
 from MAVProxy.modules.lib import grapher_vispy
+from MAVProxy.modules.lib import cam_vispy
+
  
 class MEStatus(object):
     '''status object to conform with mavproxy structure for modules'''
@@ -37,6 +38,7 @@ class MEState(object):
         self.message_count = {}
         self.message_field_count = {}
         self.arrays = np.zeros(1,)
+        self.cam = cam_vispy.XSyncCamera()
         self.input_queue = Queue.Queue()
         self.rl = None
         self.console = wxconsole.MessageConsole(title='MAVHawkview')
@@ -210,19 +212,24 @@ def count_msg_types():
         msgs_to_parse_dict[msg] = mestate.message_field_count[msg]
 
     for msg_type in msgs_to_parse:
-        mestate.arrays[msg_type] = np.zeros((len(msgs_to_parse_dict[msg_type]),mestate.message_count[msg_type]))
-        array_idx[msg_type] = 0
+        #make data object
+        
+        mestate.arrays[msg_type] = MEData(msg_type, np.zeros((len(msgs_to_parse_dict[msg_type]),mestate.message_count[msg_type])))
+        mestate.arrays[msg_type].array_idx = 0
     
     for msg in mestate.mlog._msgs:
         msg_type = msg.get_type()
         if msg_type in msgs_to_parse:
             for (idx,c) in enumerate(msgs_to_parse_dict[msg_type]):
-                    try:
-                        mestate.arrays[msg_type][idx][array_idx[msg_type]]=msg.__getattr__(c)
-                    except:
-                        print type
+                #print c
+                try:
+                    
+                    mestate.arrays[msg_type].data[idx][mestate.arrays[msg_type].array_idx]=msg.__getattr__(c)
+                    setattr(mestate.arrays[msg_type], c, mestate.arrays[msg_type].data[idx,:])
+                except:
+                    print type
                 
-            array_idx[msg_type] +=1
+            mestate.arrays[msg_type].array_idx +=1
 
     t3 = time.time()
     
@@ -231,9 +238,9 @@ def count_msg_types():
     print 'time', t3-t2
     
 class MEData(object):
-    def __init__(self):
-        self.type = None
-        self.data = np.array([])
+    def __init__(self, type, data):
+        self.type = type
+        self.data = data
         
     def get_type(self):
         return self.type
@@ -265,28 +272,12 @@ def load_graphs():
 def graph_process_vispy(fields):
     '''process for a vispy graph'''
     mgv = grapher_vispy.MavGraphVispy()
+    mgv.set_cam_link(mestate.cam)
+    
     for f in fields:
         mgv.add_field(f)
     
-    mgv.add_data(mestate.arrays)
-    #print fields
-    plt_idx =[]
-    plt_lables =[]
-        
-    for field in fields:
-        field_parts = field.split('.')
-        #print field_parts
-        #print mestate.message_field_count[field_parts[0]]
-        plt_idx.append(mestate.message_field_count[field_parts[0]].index(field_parts[1]))
-        plt_lables.append(field)
-        time_ms = mestate.message_field_count[field_parts[0]].index('TimeMS')
-    
-    y = mestate.arrays[field_parts[0]][plt_idx,:]
-    x = mestate.arrays[field_parts[0]][time_ms,:]
-    mgv.set_data(x,y,lables = plt_lables)
-    
-
-
+    mgv.set_data(mestate.arrays)
     mgv.process()
     mgv.show()
 
