@@ -51,7 +51,8 @@ class MEState(object):
               MPSetting('linestyle', str, None, 'linestyle'),
               MPSetting('flightmode', str, None, 'flightmode', choice=['apm','px4']),
               MPSetting('legend', str, 'upper left', 'legend position'),
-              MPSetting('legend2', str, 'upper right', 'legend2 position')
+              MPSetting('legend2', str, 'upper right', 'legend2 position'),
+              MPSetting('grid', str, None, 'grid', choice=['on','off'])
               ]
             )
 
@@ -278,6 +279,7 @@ def graph_process_vispy(fields):
         mgv.add_field(f)
     
     mgv.set_data(mestate.arrays)
+    mgv.set_grid(mestate.settings.grid)#can be used to display a grid
     mgv.process()
     mgv.show()
 

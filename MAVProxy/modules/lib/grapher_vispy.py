@@ -60,13 +60,34 @@ class MavGraphVispy(object):
         self.linked = False
         self.fields = []
         self.lables = True
+        self.grid = None
         
     def add_field(self, field):
         '''add another field to plot'''
         self.fields.append(field)
+    def set_grid(self, choice):
+        '''control if a grid is shown'''
+        if choice:
+            self.grid_on()
+        else:
+            self.grid_off()
+    
+    def grid_on(self):
+        self.grid = vp.visuals.GridLines(color=(0, 0, 0, 0.5))
+        self.grid.set_gl_state('translucent')
+        self.fig[0, 0].view.add(self.grid)
+    
+    def grid_off(self):
+        if self.grid is not None:
+            try:
+                pass #remove grid here
+            except:
+                print 'error removing grid'
+        
+        
         
     def set_cam_link(self, cam):
-        self.plt.camera.link(cam)
+        self.plt.camera.link(cam) #not currently working...
     
     def get_cam(self):
         return self.plt.camera
