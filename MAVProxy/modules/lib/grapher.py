@@ -235,7 +235,7 @@ class MavGraph(object):
             if f.endswith(":1"):
                 self.first_only[i] = True
                 f = f[:-2]
-            print f, vars
+           
             
             v = mavutil.evaluate_expression(f, vars)
         
@@ -264,10 +264,6 @@ class MavGraph(object):
                 if not mavutil.evaluate_condition(self.condition, mlog.messages):
                     continue
             tdays = matplotlib.dates.date2num(datetime.datetime.fromtimestamp(msg._timestamp+timeshift))
-#             print 'msg', msg
-            print 'mlog.msg', mlog.messages
-#             print 'mlog.flight', mlog.flightmode
-#             
             self.add_data(tdays, msg, mlog.messages, mlog.flightmode)
 
     def process(self, block=True):

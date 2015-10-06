@@ -26,7 +26,11 @@ import numpy as np
 from MAVProxy.modules.lib import grapher_vispy
 from MAVProxy.modules.lib import cam_vispy
 
- 
+
+class Camera_Control(object):
+    def __init__(self, rect):
+        self.rect = rect
+        
 class MEStatus(object):
     '''status object to conform with mavproxy structure for modules'''
     def __init__(self):
@@ -38,11 +42,16 @@ class MEState(object):
         self.message_count = {}
         self.message_field_count = {}
         self.arrays = np.zeros(1,)
-        self.cam = cam_vispy.XSyncCamera()
+        self.plot_processes = []
+        self.send_queues = []
+        self.recv_queues = []
+        self.master_rect = None
+        self.flightmode_list = []
         self.input_queue = Queue.Queue()
         self.rl = None
         self.console = wxconsole.MessageConsole(title='MAVHawkview')
         self.exit = False
+        
         self.status = MEStatus()
         self.settings = MPSettings(
             [ MPSetting('marker', str, '+', 'data marker', tab='Graph'),
@@ -52,7 +61,7 @@ class MEState(object):
               MPSetting('flightmode', str, None, 'flightmode', choice=['apm','px4']),
               MPSetting('legend', str, 'upper left', 'legend position'),
               MPSetting('legend2', str, 'upper right', 'legend2 position'),
-              MPSetting('grid', str, None, 'grid', choice=['on','off'])
+              MPSetting('grid', str, 'off', 'grid', choice=['on','off'])
               ]
             )
 
@@ -111,7 +120,7 @@ def messages_menu():
     ret = []
     idx = 0
     for msg in msgs:
-        msgstr = "%s" % (msg)
+        msgstr = "%s" % (msg+':'+str(mestate.message_field_count[msg]))
         ret.append(MPMenuCheckbox(msgstr,msgstr, 'mode-%u' % idx))
         idx += 1
     return ret
@@ -185,27 +194,25 @@ def load_graph_xml(xml):
                 break
     return True
 
-def count_msg_types():
+def count_msg_types(progress_callback=None):
+
     for msg in mestate.mlog._msgs:
         type = msg.get_type()
         if type not in mestate.message_count.keys():
             mestate.message_count[type] = 0
-#             f='GPS.Spd'
-#             vars = mlog.messages
-#             print vars
-#             v = mavutil.evaluate_expression(f, vars)
-#             #print v
-            #print len(msg.fmt.columns),msg.fmt.columns
             mestate.message_field_count[type] = msg.fmt.columns
+            for idx, attr in enumerate(mestate.message_field_count[type]):
+                try:
+                    float(msg.__getattr__(attr))
+                except:
+                    print type, mestate.message_field_count[type].pop(idx)
+                    
         mestate.message_count[type] += 1
-    #print mestate.message_count
     #print mestate.message_field_count #this holds a list of the field names for each msg type
-    
-    t2 = time.time()
     mestate.arrays = {}
     array_idx = {}
     
-    ignore_list = ['FMT','MSG','PARM']
+    ignore_list = []#['FMT','MSG','PARM']
     msgs_to_parse = [x for x in mestate.message_field_count.keys() if x not in ignore_list]
     msgs_to_parse_dict = {}
     
@@ -214,30 +221,83 @@ def count_msg_types():
 
     for msg_type in msgs_to_parse:
         #make data object
-        
-        mestate.arrays[msg_type] = MEData(msg_type, np.zeros((len(msgs_to_parse_dict[msg_type]),mestate.message_count[msg_type])))
+        mestate.arrays[msg_type] = MEData(msg_type, np.zeros((len(msgs_to_parse_dict[msg_type])+1,mestate.message_count[msg_type])))
+        #the +1 is for msg._timestamp
         mestate.arrays[msg_type].array_idx = 0
     
-    for msg in mestate.mlog._msgs:
+    total = len(mestate.mlog._msgs)
+    last_pct = 0
+    for count, msg in enumerate(mestate.mlog._msgs):
+        
         msg_type = msg.get_type()
-        if msg_type in msgs_to_parse:
-            for (idx,c) in enumerate(msgs_to_parse_dict[msg_type]):
-                #print c
-                try:
-                    
-                    mestate.arrays[msg_type].data[idx][mestate.arrays[msg_type].array_idx]=msg.__getattr__(c)
-                    setattr(mestate.arrays[msg_type], c, mestate.arrays[msg_type].data[idx,:])
-                except:
-                    print type
+        if msg_type not in msgs_to_parse:
+            continue
+        
+        for (idx,c) in enumerate(msgs_to_parse_dict[msg_type]):
+            try:
+                #apply the value to the array index
+                mestate.arrays[msg_type].data[idx][mestate.arrays[msg_type].array_idx]=msg.__getattr__(c)
+                #setattr(mestate.arrays[msg_type], c, mestate.arrays[msg_type].data[idx,:])
+                #^^doing this here is slow...
+            except:
+                pass
+                #print type, c, msg.__getattr__(c)
                 
-            mestate.arrays[msg_type].array_idx +=1
+        #add the msg time stamp to the end of the data entry        
+        mestate.arrays[msg_type].data[-1][mestate.arrays[msg_type].array_idx]=msg._timestamp
+            
+        mestate.arrays[msg_type].array_idx +=1
+        percent = ((count+1.)/total)*100
+        if int(percent) != last_pct and progress_callback:
+                progress_callback(int(percent))
+                last_pct = int(percent)
+        
+    #we have built the arrays now.... now apply the atts.
+    for msg_type in mestate.arrays:
+        for (idx,c) in enumerate(msgs_to_parse_dict[msg_type]):
+            setattr(mestate.arrays[msg_type], c, mestate.arrays[msg_type].data[idx,:])
+        #assign timestamp att to data object
+        setattr(mestate.arrays[msg_type], 'timestamp', mestate.arrays[msg_type].data[-1,:])
+        setattr(mestate.arrays[msg_type], 'min_timestamp', np.min(mestate.arrays[msg_type].timestamp))
+        setattr(mestate.arrays[msg_type], 'max_timestamp', np.max(mestate.arrays[msg_type].timestamp))
+        
+        print msg_type, mestate.arrays[msg_type].min_timestamp, mestate.arrays[msg_type].max_timestamp
+        
+    
+    #work out modes...
+    #datalog start
+    log_min = min([mestate.arrays[x].min_timestamp for x in mestate.arrays])
+    log_max = max([mestate.arrays[x].max_timestamp for x in mestate.arrays])
+    
+  
+    mode = mestate.arrays['MODE'].Mode
+    mode_timestamp = mestate.arrays['MODE'].timestamp
+    last_mode = None
+    last_time = log_min
+    for idx, mode_num in enumerate(mode):
+        if mode_num != last_mode:
+            self.flightmode_list.append({last_mode:(mode_timestamp[idx]-last_time)})
+            last_mode = mode_num
+            last_time = mode_timestamp[idx]
+            
+    self.flightmode_list.append({last_mode:(log_max - mode_timestamp[-1])})
+        
+class MEFlightmode(object):
+    def __init__(self, number, s_global = None , e_global = None, s_local = None, e_local = None):
+        self.number = number
+        self.s_global = s_global
+        self.e_global = e_global
+        
+        
+            
+        self.s_local = s_local
+        self.e_local = e_local
+        self.duration_local = None
+        
+    def set_duration_global(self, start, end):
+        self.duration_global = e_global - s_global
+        
 
-    t3 = time.time()
-    
-    
-
-    print 'time', t3-t2
-    
 class MEData(object):
     def __init__(self, type, data):
         self.type = type
@@ -270,19 +330,28 @@ def load_graphs():
     mestate.graphs = sorted(mestate.graphs, key=lambda g: g.name)
 
 
-def graph_process_vispy(fields):
+def graph_process_vispy(args):
+    fields = args[0:-2]
+    send_queue = args[-2]
+    recv_queue = args[-1]
     '''process for a vispy graph'''
-    mgv = grapher_vispy.MavGraphVispy()
-    mgv.set_cam_link(mestate.cam)
+    mgv = grapher_vispy.MavGraphVispy(send_queue,recv_queue)
+
     
     for f in fields:
         mgv.add_field(f)
     
-    mgv.set_data(mestate.arrays)
     mgv.set_grid(mestate.settings.grid)#can be used to display a grid
+    
+    mgv.set_condition(mestate.settings.condition)
+    mgv.set_xaxis(mestate.settings.xaxis)
+    mgv.set_flightmode(mestate.settings.flightmode)
+    mgv.set_data(mestate.arrays)
+    mgv.set_legend(mestate.settings.legend)
     mgv.process()
+    
     mgv.show()
-
+    
 
 def graph_process(fields):
     '''process for a graph'''
@@ -316,8 +385,17 @@ def cmd_graph(args):
         if g.description:
             mestate.console.write("%s\n" % g.description, fg='blue')
     mestate.console.write("Expression: %s\n" % ' '.join(args))
-    child = multiprocessing.Process(target=graph_process_vispy, args=[args])
-    child.start()
+    
+    send_queue = multiprocessing.Queue()
+    recv_queue = multiprocessing.Queue() 
+    args.append(send_queue)
+    args.append(recv_queue)
+    
+    mestate.plot_processes.append(multiprocessing.Process(target=graph_process_vispy, args=[args]))
+    mestate.send_queues.append(send_queue)
+    mestate.recv_queues.append(recv_queue)
+    mestate.plot_processes[-1].start()
+
 
 def map_process(args):
     '''process for a graph'''
@@ -415,6 +493,35 @@ def main_loop():
             cmds = line.split(';')
             for c in cmds:
                 process_stdin(c)
+        
+        
+        for idx,queue in enumerate(mestate.recv_queues):
+            if idx == 0:
+                obj = None
+                while not queue.empty():
+                    obj = queue.get()
+                
+                if obj is not None:
+                    mestate.master_rect = obj.rect
+
+            
+            else:
+                slave_rect = None
+                while not queue.empty():
+                    obj = queue.get()
+                    slave_rect = obj.rect
+                    
+                if slave_rect is not None and mestate.master_rect is not None:
+                    slave_rect.left = mestate.master_rect.left
+                    slave_rect.right = mestate.master_rect.right
+                    mestate.send_queues[idx].put(Camera_Control(slave_rect))
+                    
+            
+                    
+            
+        
+                
+            
         time.sleep(0.1)
 
 command_map = {
@@ -452,8 +559,11 @@ mestate.status.msgs = mlog.messages
 
 t1 = time.time()
 mestate.console.write("\ndone (%u messages in %.1fs)\n" % (mestate.mlog._count, t1-t0))
-  
-count_msg_types()
+
+t0 = time.time()
+count_msg_types(progress_bar)
+t1 = time.time()
+mestate.console.write("\ndone (%u messages in %.1fs)\n" % (mestate.mlog._count, t1-t0))
 
 load_graphs()
 setup_menus()

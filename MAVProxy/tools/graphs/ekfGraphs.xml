@@ -157,8 +157,8 @@
 
   <graph name='EKF/Magnetic Declination'>
     <description>Magnetic Declination</description>
-    <expression>degrees(atan2(EKF2.ME,EKF2.MN)) degrees(atan2(NKF2.ME,NKF2.MN))</expression>
-    <expression>degrees(atan2(EKF2.ME,EKF2.MN))</expression>
+    <expression>degrees(arctan2(EKF2.ME,EKF2.MN)) degrees(arctan2(NKF2.ME,NKF2.MN))</expression>
+    <expression>degrees(arctan2(EKF2.ME,EKF2.MN))</expression>
   </graph>
 
   <graph name='EKF/Gyro Bias'>
@@ -180,8 +180,8 @@
 
   <graph name='EKF/Wind Speed and Direction'>
     <description>Wind Velocity NE</description>
-    <expression>sqrt(EKF2.VWN**2+EKF2.VWE**2) wrap_360(degrees(atan2(-EKF2.VWE,-EKF2.VWN))):2 sqrt(NKF2.VWN**2+NKF2.VWE**2) wrap_360(degrees(atan2(-NKF2.VWE,-NKF2.VWN))):2</expression>
-    <expression>sqrt(EKF2.VWN**2+EKF2.VWE**2) wrap_360(degrees(atan2(-EKF2.VWE,-EKF2.VWN))):2</expression>
+    <expression>sqrt(EKF2.VWN**2+EKF2.VWE**2) wrap_360(degrees(arctan2(-EKF2.VWE,-EKF2.VWN))):2 sqrt(NKF2.VWN**2+NKF2.VWE**2) wrap_360(degrees(arctan2(-NKF2.VWE,-NKF2.VWN))):2</expression>
+    <expression>sqrt(EKF2.VWN**2+EKF2.VWE**2) wrap_360(degrees(arctan2(-EKF2.VWE,-EKF2.VWN))):2</expression>
   </graph>
 
   <graph name='EKF/Accel Bias'>

@@ -8,15 +8,15 @@ class XSyncCamera(BaseCamera):
             return
         
         for cam in self._linked_cameras:
-            print 'linked', cam
+            #print 'linked', cam
             r = Rect(D['rect'])
             if cam is self._linked_cameras_no_update:
-                print 'no up'
+                #print 'no up'
                 continue
             try:
                 cam._linked_cameras_no_update = self
                 cam_rect = cam.get_state()['rect']
-                print 'cam_rect', cam_rect
+                #print 'cam_rect', cam_rect
                 r.top= cam_rect.top
                 r.bottom = cam_rect.bottom
                 cam.set_state({'rect':r})
