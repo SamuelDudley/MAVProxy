@@ -106,9 +106,7 @@ class CLANDModule(mp_module.MPModule):
                                                                     icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
                                                                     trail=mp_slipmap.SlipTrail(colour=(0, 255, 255))))
                     
-                    self.mpstate.map.add_object(mp_slipmap.SlipIcon(id+'line', (m.lat * 1e-7, m.lon * 1e-7),
-                                                                    icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
-                                                                    trail=mp_slipmap.SlipTrail(colour=(0, 255, 255))))
+                    
             else:  # the estimator is in the dict
                 # update the dict entry
                 self.estimators[id].update_state(m.to_dict())
@@ -141,6 +139,10 @@ class CLANDModule(mp_module.MPModule):
                                                                                                       self.estimators[id].state['lat']* 1e-7, self.estimators[id].state['lon']* 1e-7,
                                                                                                       m.lat* 1e-7, m.lon* 1e-7 
                                                                                                       )
+                
+                p = [(self.estimators[id].state['lat']* 1e-7, self.estimators[id].state['lon']* 1e-7), (m.lat* 1e-7, m.lon* 1e-7)]
+                self.estimators[id].map_line = mp_slipmap.SlipPolygon(id+'line', p, layer=3,linewidth=1, colour=(0, 255, 255))
+                self.mpstate.map.add_object(self.estimators[id].map_line)
             
         if m.get_type() == 'AUTO_SUBMODE':
             msg_dict = m.to_dict()
