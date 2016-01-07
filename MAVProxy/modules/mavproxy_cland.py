@@ -4,7 +4,7 @@ Samuel Dudley
 Jan 2016
 '''
 
-import time
+import time, math
 from math import *
 
 from MAVProxy.modules.lib import mp_module
@@ -26,6 +26,8 @@ class Estimator(object):
         self.icon = self.vehicle_colour + self.vehicle_type + '.png'
         self.state_update_time = time.time()
         self.extra_update_time = None
+        self.distance = 0
+        self.bearing = 0
         self.is_active = True
 
     def update_state(self, state):
@@ -48,8 +50,8 @@ class CLANDModule(mp_module.MPModule):
 
         self.add_command('cland', self.cmd_cland, ["cland control",
                                                  "<status>",
-                                                 "<reset>",
-                                                 "set (CLANDSETTING)"])
+                                                 "<reset>"])#,
+#                                                  "set (CLANDSETTING)"])
 
 #         self.threat_detection_timer = mavutil.periodic_event(2)
 #         self.threat_timeout_timer = mavutil.periodic_event(2)
@@ -70,6 +72,7 @@ class CLANDModule(mp_module.MPModule):
                 print id
                 print 'state:', self.estimators[id].state
                 print 'extra:', self.estimators[id].extra
+                print 'distance:', self.estimators[id].distance, 'bearing:', self.estimators[id].bearing
                 print ''
 #         elif args[0] == "set":
 #             self.cland_settings.command(args[1:])
@@ -102,6 +105,10 @@ class CLANDModule(mp_module.MPModule):
                     self.mpstate.map.add_object(mp_slipmap.SlipIcon(id, (m.lat * 1e-7, m.lon * 1e-7),
                                                                     icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
                                                                     trail=mp_slipmap.SlipTrail(colour=(0, 255, 255))))
+                    
+                    self.mpstate.map.add_object(mp_slipmap.SlipIcon(id+'line', (m.lat * 1e-7, m.lon * 1e-7),
+                                                                    icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
+                                                                    trail=mp_slipmap.SlipTrail(colour=(0, 255, 255))))
             else:  # the estimator is in the dict
                 # update the dict entry
                 self.estimators[id].update_state(m.to_dict())
@@ -128,28 +135,58 @@ class CLANDModule(mp_module.MPModule):
             self.lon = m.lon
             self.alt = m.alt
             self.last_position_update_time = time.time()
+            for id in self.estimators:
+                self.estimators[id].state
+                (self.estimators[id].distance, self.estimators[id].bearing) = self.distance_bearing_two_points(
+                                                                                                      self.estimators[id].state['lat']* 1e-7, self.estimators[id].state['lon']* 1e-7,
+                                                                                                      m.lat* 1e-7, m.lon* 1e-7 
+                                                                                                      )
             
         if m.get_type() == 'AUTO_SUBMODE':
             msg_dict = m.to_dict()
-            if 1 in msg_dict.values():
+            if True in msg_dict.values():
                 for key in msg_dict:
-                    if msg_dict[key] == 1 and self.master.flightmode == 'AUTO':
+                    if msg_dict[key] == True and self.master.flightmode == 'AUTO':
                         self.auto_submode = key
                         
-                        self.mpstate.rl.set_prompt('AUTO ['+self.auto_submode.upper()+']> ')
+                        self.mpstate.rl.set_prompt(self.master.flightmode+' ['+self.auto_submode.upper()+']> ')
             else:
-                self.auto_submode = ''
+                self.auto_submode = None
                 self.mpstate.rl.set_prompt(self.mpstate.status.flightmode+'> ')
             
 
     def idle_task(self):
         '''called on idle'''
         pass
+    
+    def distance_bearing_two_points(self, lat1, lon1, lat2, lon2):
+        '''get the horizontal distance between two points'''
+        lat1 = math.radians(lat1)
+        lon1 = math.radians(lon1)
+        lat2 = math.radians(lat2)
+        lon2 = math.radians(lon2)
+    
+        dLat = lat2 - lat1
+        dLon = lon2 - lon1
+    
+        # math as per mavextra.distance_two()
+        a = math.sin(0.5 * dLat)**2 + math.sin(0.5 * dLon)**2 * math.cos(lat1) * math.cos(lat2)
+        c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+        
+        b = math.atan2( math.sin(dLon)* math.cos(lat2),
+                        math.cos(lat1)* math.sin(lat2)- math.sin(lat1)* math.cos(lat2)* math.cos(dLon))
+        b = math.degrees(b)
+        b = (b + 360) % 360
+        
+        return (6371. * 1000. * c, b)
+        
 
 
 def init(mpstate):
     '''initialise module'''
     return CLANDModule(mpstate)
+
+
 
 #RESET_EST reset the EST to a specified lat, lng, alt (wgs84 10.**3)
 #TARGET_ICE sets a target for the FC (ICE) #cland 2
