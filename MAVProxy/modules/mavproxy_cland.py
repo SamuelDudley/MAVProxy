@@ -82,15 +82,21 @@ class CLANDModule(mp_module.MPModule):
             print(usage)
             
     def send_reset(self):
-        '''send a reset msg to the estimator'''
-        time_since_last_position_update  = time.time() - self.last_position_update_time
-        # TODO: check how old the last update was is prior to reseting
-        #block until we get a msg...?
-        msg = self.mpstate.master().recv_match(type = 'GLOBAL_POSITION_INT', blocking=True, timeout=5) #wait for a msg
-        if msg is not None:
-            self.master.mav.reset_est_send(msg.lat, msg.lon, msg.alt)
-        else:
-            print("Error: Failed to recv current location for reset")
+        '''send a reset command to the AP in order to reset the estimator'''
+        print("Sent DO_RESET_EST")
+        self.master.mav.command_long_send(
+            self.settings.target_system,  # target_system
+            0, # target_component
+            mavutil.mavlink.MAV_CMD_DO_RESET_EST, # command
+            0, # confirmation
+            0, # param1
+            0, # param2
+            0, # param3
+            0, # param4
+            0, # param5
+            0, # param6
+            0) # param7
+
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
