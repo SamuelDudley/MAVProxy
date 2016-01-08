@@ -47,21 +47,22 @@ class CLANDModule(mp_module.MPModule):
         super(CLANDModule, self).__init__(mpstate, "cland", "C-LAND trials support")
         self.estimators = {}
         self.auto_submode = None
-
+        self.cland_settings = mp_settings.MPSettings([("rlim", float, 20),  # +-roll limits     [degrees]
+                                                      ("plim", float, 15),  # +-pitch limits    [degrees]
+                                                      ("amax", float, 10000),  # max altitude    [wgs84? meters]
+                                                      ("amin", float, 0),  # min altitude    [wgs84? meters]
+                                                      ("tlim", float, 5),  # EST_TELE timeout limit   [seconds]
+                                                      ("elim", float, 100),  # pos error limit [meters]
+                                                      ("line", bool, True)]) # show the line that links the est to the true pos
+        
         self.add_command('cland', self.cmd_cland, ["cland control",
                                                  "<status>",
-                                                 "<reset>"])#,
-#                                                  "set (CLANDSETTING)"])
-
-#         self.threat_detection_timer = mavutil.periodic_event(2)
-#         self.threat_timeout_timer = mavutil.periodic_event(2)
-        self.lat = None
-        self.lon = None
-        self.alt = None
+                                                 "<reset>",
+                                                 "set (CLANDSETTING)"])
 
     def cmd_cland(self, args):
         '''cland command parser'''
-        usage = "usage: cland <reset> <status>" #no <set> at this point in time...
+        usage = "usage: cland <start|stop|reset|status> <set> (CLANDSETTING)"
         if len(args) == 0:
             print(usage)
             return
@@ -74,10 +75,14 @@ class CLANDModule(mp_module.MPModule):
                 print 'extra:', self.estimators[id].extra
                 print 'distance:', self.estimators[id].distance, 'bearing:', self.estimators[id].bearing
                 print ''
-#         elif args[0] == "set":
-#             self.cland_settings.command(args[1:])
+        elif args[0] == "set":
+            self.cland_settings.command(args[1:])
         elif args[0] == "reset":
             self.send_reset()
+        elif args[0] == "start":
+            self.send_cland_start()
+        elif args[0] == "stop":
+            self.send_cland_stop()
         else:
             print(usage)
             
@@ -88,6 +93,38 @@ class CLANDModule(mp_module.MPModule):
             self.settings.target_system,  # target_system
             0, # target_component
             mavutil.mavlink.MAV_CMD_DO_RESET_EST, # command
+            0, # confirmation
+            0, # param1
+            0, # param2
+            0, # param3
+            0, # param4
+            0, # param5
+            0, # param6
+            0) # param7
+
+    def send_cland_start(self):
+        '''send a command to start the CLAND mode'''
+        print("Sent DO_START_CLAND1")
+        self.master.mav.command_long_send(
+            self.settings.target_system,  # target_system
+            0, # target_component
+            mavutil.mavlink.MAV_CMD_DO_START_CLAND1, # command
+            0, # confirmation
+            self.cland_settings.rlim, # Roll limits (degrees)
+            self.cland_settings.plim, # Pitch limits (degrees)
+            self.cland_settings.amin, # Min Alt (m)
+            self.cland_settings.amax, # Max Alt (m)
+            self.cland_settings.elim, # Max EST error (m)
+            self.cland_settings.tlim, # EST_TELE timeout limit (seconds)
+            0) # empty
+        
+    def send_cland_stop(self):
+        '''send a command to stop the CLAND mode'''
+        print("Sent DO_STOP_CLAND1")
+        self.master.mav.command_long_send(
+            self.settings.target_system,  # target_system
+            0, # target_component
+            mavutil.mavlink.MAV_CMD_DO_STOP_CLAND1, # command
             0, # confirmation
             0, # param1
             0, # param2
@@ -111,7 +148,6 @@ class CLANDModule(mp_module.MPModule):
                     self.mpstate.map.add_object(mp_slipmap.SlipIcon(id, (m.lat * 1e-7, m.lon * 1e-7),
                                                                     icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
                                                                     trail=mp_slipmap.SlipTrail(colour=(0, 255, 255))))
-                    
                     
             else:  # the estimator is in the dict
                 # update the dict entry
@@ -148,7 +184,9 @@ class CLANDModule(mp_module.MPModule):
                 
                 p = [(self.estimators[id].state['lat']* 1e-7, self.estimators[id].state['lon']* 1e-7), (m.lat* 1e-7, m.lon* 1e-7)]
                 self.estimators[id].map_line = mp_slipmap.SlipPolygon(id+'line', p, layer=3,linewidth=1, colour=(0, 255, 255))
-                self.mpstate.map.add_object(self.estimators[id].map_line)
+                self.estimators[id].map_line.set_hidden(not self.cland_settings.line)
+                if self.mpstate.map:  # if the map is loaded...
+                    self.mpstate.map.add_object(self.estimators[id].map_line)
             
         if m.get_type() == 'AUTO_SUBMODE':
             msg_dict = m.to_dict()
@@ -193,8 +231,3 @@ class CLANDModule(mp_module.MPModule):
 def init(mpstate):
     '''initialise module'''
     return CLANDModule(mpstate)
-
-
-
-#RESET_EST reset the EST to a specified lat, lng, alt (wgs84 10.**3)
-#TARGET_ICE sets a target for the FC (ICE) #cland 2
