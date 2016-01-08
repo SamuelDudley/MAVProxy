@@ -59,10 +59,12 @@ class CLANDModule(mp_module.MPModule):
                                                  "<status>",
                                                  "<reset>",
                                                  "set (CLANDSETTING)"])
+        
+        
 
     def cmd_cland(self, args):
         '''cland command parser'''
-        usage = "usage: cland <start|stop|reset|status> <set> (CLANDSETTING)"
+        usage = "usage: cland <start|stop|reset|status|fence> <set> (CLANDSETTING)"
         if len(args) == 0:
             print(usage)
             return
@@ -83,6 +85,9 @@ class CLANDModule(mp_module.MPModule):
             self.send_cland_start()
         elif args[0] == "stop":
             self.send_cland_stop()
+        elif args[0] == "fence":
+            self.load_fence()
+            
         else:
             print(usage)
             
@@ -117,6 +122,21 @@ class CLANDModule(mp_module.MPModule):
             self.cland_settings.elim, # Max EST error (m)
             self.cland_settings.tlim, # EST_TELE timeout limit (seconds)
             0) # empty
+        
+    
+    def load_fence(self):
+        for (lat, lon) in self.fence_return():
+            print lat, lon
+            self.mpstate.public_modules['fence'].points = []
+            self.mpstate.public_modules['fence'].fenceloader.add_latlon(lat, lon)
+        
+        self.mpstate.public_modules['fence'].send_fence()
+        self.mpstate.public_modules['fence'].list_fence('fence.txt')
+        
+        self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
+        
+    
+    
         
     def send_cland_stop(self):
         '''send a command to stop the CLAND mode'''
@@ -225,6 +245,40 @@ class CLANDModule(mp_module.MPModule):
         b = (b + 360) % 360
         
         return (6371. * 1000. * c, b)
+    
+    
+    def fence_kill(self):
+        points = [
+                  (-30.923611, 136.524444),
+                  (-30.8975, 136.524444),
+                  (-30.8947123581, 136.53439135),
+                  (-30.5180366333, 136.393053765),
+                  (-30.4957131215, 136.47230589),
+                  (-30.9116531829, 136.629078844),
+                  (-30.9237442549, 136.585888539),
+                  (-30.925277, 136.585833),
+                  (-30.9377738859, 136.569449314),
+                  (-30.937778, 136.544722),
+                  (-30.923611, 136.524444)
+                 ]
+        
+        return points
+        
+    def fence_return(self):
+        points = [
+                  (-30.923611, 136.524444),
+                  (-30.8975, 136.524444),
+                  (-30.8905294594, 136.549311294),
+                  (-30.5267268708, 136.412790802),
+                  (-30.5127803466, 136.462332028),
+                  (-30.9029957688, 136.609393997),
+                  (-30.9094563814, 136.586326039),
+                  (-30.925277, 136.585833),
+                  (-30.9377738859, 136.569449314),
+                  (-30.937778, 136.544722),
+                  (-30.923611, 136.524444)
+                 ]
+        return points
         
 
 
