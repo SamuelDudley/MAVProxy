@@ -21,7 +21,7 @@ class Estimator(object):
         self.id = id
         self.state = state
         self.extra = {}
-        self.vehicle_colour = 'green'  
+        self.vehicle_colour = 'blue'  
         self.vehicle_type = 'plane' # use plane icon for now
         self.icon = self.vehicle_colour + self.vehicle_type + '.png'
         self.state_update_time = time.time()
@@ -29,6 +29,7 @@ class Estimator(object):
         self.distance = 0
         self.bearing = 0
         self.is_active = True
+
 
     def update_state(self, state):
         '''update the estimator state'''
@@ -46,14 +47,23 @@ class CLANDModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CLANDModule, self).__init__(mpstate, "cland", "C-LAND trials support")
         self.estimators = {}
-        self.auto_submode = None
+        self.auto_submode = 'NONE'
+        self.row_1 = 4
+        self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_1)
+        self.row_2 = self.row_1 + 1
+        self.mpstate.console.set_status('submode', 'NONE', fg='grey', row=self.row_2)
+        self.row_3 = self.row_2 + 1
+        self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_3)
+        self.row_4 = self.row_3 + 1
+        self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_4)
+        
         self.cland_settings = mp_settings.MPSettings([("rlim", float, 20),  # +-roll limits     [degrees]
                                                       ("plim", float, 15),  # +-pitch limits    [degrees]
                                                       ("amax", float, 10000),  # max altitude    [wgs84? meters]
                                                       ("amin", float, 0),  # min altitude    [wgs84? meters]
                                                       ("tlim", float, 5),  # EST_TELE timeout limit   [seconds]
                                                       ("elim", float, 100),  # pos error limit [meters]
-                                                      ("line", bool, True)]) # show the line that links the est to the true pos
+                                                      ("line", bool, True)]) # show the line that links the est pos to the true pos
         
         self.add_command('cland', self.cmd_cland, ["cland control",
                                                  "<status>",
@@ -123,21 +133,6 @@ class CLANDModule(mp_module.MPModule):
             self.cland_settings.tlim, # EST_TELE timeout limit (seconds)
             0) # empty
         
-    
-    def load_fence(self):
-        for (lat, lon) in self.fence_return():
-            print lat, lon
-            self.mpstate.public_modules['fence'].points = []
-            self.mpstate.public_modules['fence'].fenceloader.add_latlon(lat, lon)
-        
-        self.mpstate.public_modules['fence'].send_fence()
-        self.mpstate.public_modules['fence'].list_fence('fence.txt')
-        
-        self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
-        
-    
-    
-        
     def send_cland_stop(self):
         '''send a command to stop the CLAND mode'''
         print("Sent DO_STOP_CLAND1")
@@ -154,10 +149,24 @@ class CLANDModule(mp_module.MPModule):
             0, # param6
             0) # param7
 
+    def load_fence(self):
+        '''load and draw the CLAND fences'''
+        for (lat, lon) in self.fence_return():
+            #clear the fence points (if any loaded)
+            self.mpstate.public_modules['fence'].points = []
+            #add the cland fence
+            self.mpstate.public_modules['fence'].fenceloader.add_latlon(lat, lon)
+        #send the fence to the ap
+        self.mpstate.public_modules['fence'].send_fence()
+        #save the fence and draw it on the map
+        self.mpstate.public_modules['fence'].list_fence('fence.txt')
+        #draw the second fence 
+        self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
+        
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
-        if m.get_type() == 'EST_TELE': #EST_EXTRA_TELE WP_SET CONTROL_SET
+        if m.get_type() == 'EST_TELE':
             id = 'cland'
             if id not in self.estimators.keys():  # check to see if the estimator is in the dict
                 # if not then add it
@@ -175,12 +184,73 @@ class CLANDModule(mp_module.MPModule):
                 if self.mpstate.map:  # if the map is loaded...
                     # update the map
                     self.mpstate.map.set_position(id, (m.lat * 1e-7, m.lon * 1e-7), rotation=mavutil.wrap_180(m.yaw))
-        
+                
+                # update the console
+                self.mpstate.console.set_status(id+'hdg', 'Hdg: %u/%u' % (int(m.yaw), m.gcourse*1.0e-2),
+                                                 fg='black', row=self.row_3)
+                
+                self.mpstate.console.set_status(id+'alt_wgs84', 'AMSL: %u' % (int(m.alt_wgs84*1.0e-3)),
+                                                 fg='black', row=self.row_3)
+                
+                self.mpstate.console.set_status(id+'alt_agl', 'AGL: %u' % (int(m.alt_agl*1.0e-3)),
+                                                 fg='black', row=self.row_3)
+                
+                self.mpstate.console.set_status(id+'gspeed', 'GNDSpeed: %u' % (int(m.gspeed*1.0e-2)),
+                                                 fg='black', row=self.row_3)
+                
+                self.mpstate.console.set_status(id+'vspeed', 'VSpeed: %u' % (int(m.vspeed*1.0e-2)),
+                                                 fg='black', row=self.row_3)
+                
+                self.mpstate.console.set_status(id+'roll', 'Roll: %u' % (int(m.roll)),
+                                                 fg='black', row=self.row_3)
+                
+                self.mpstate.console.set_status(id+'pitch', 'Pitch: %u' % (int(m.pitch)),
+                                                 fg='black', row=self.row_3)
+                
+                if m.hacc <= 500:
+                    self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
+                                                 fg='green', row=self.row_2)
+                else:
+                    self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
+                                                 fg='red', row=self.row_2)
+                
+                if m.filter_status <= 128:
+                    self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
+                                                 fg='red', row=self.row_2)
+                else:
+                    self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
+                                                 fg='green', row=self.row_2)
+                    
+                if m.reset_init <= 0:
+                    self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
+                                                 fg='green', row=self.row_2)
+                else:
+                    self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
+                                                 fg='red', row=self.row_2)
+                
+            
         if m.get_type() == 'EST_EXTRA_TELE':
             id = 'cland'
             if id in self.estimators.keys():  # check to see if the estimator is in the dict
                 self.estimators[id].update_extra(m.to_dict())
-        
+            
+                # update the console
+                # TODO: set limits to make the text green or red...
+                self.mpstate.console.set_status(id+'nadir', 'Nadir: %u' % (m.num_features_nadir),
+                                                 fg='black', row=self.row_4)
+                
+                self.mpstate.console.set_status(id+'left', 'Left: %u' % (m.num_features_left),
+                                                 fg='black', row=self.row_4)
+                
+                self.mpstate.console.set_status(id+'right', 'Right: %u' % (m.num_features_right),
+                                                 fg='black', row=self.row_4)
+                
+                self.mpstate.console.set_status(id+'forward', 'Forward: %u' % (m.num_features_forward),
+                                                 fg='black', row=self.row_4)
+                
+                
+            
+            
         if m.get_type() == 'FC_TELE':
             pass
         
@@ -191,10 +261,7 @@ class CLANDModule(mp_module.MPModule):
             pass 
         
         if m.get_type() == "GLOBAL_POSITION_INT":
-            self.lat = m.lat
-            self.lon = m.lon
-            self.alt = m.alt
-            self.last_position_update_time = time.time()
+            '''draw a line from the estimated pos to the true pos'''
             for id in self.estimators:
                 self.estimators[id].state
                 (self.estimators[id].distance, self.estimators[id].bearing) = self.distance_bearing_two_points(
@@ -209,16 +276,24 @@ class CLANDModule(mp_module.MPModule):
                     self.mpstate.map.add_object(self.estimators[id].map_line)
             
         if m.get_type() == 'AUTO_SUBMODE':
+            '''tell the operator what the submode is via a prompt change'''
             msg_dict = m.to_dict()
-            if True in msg_dict.values():
+            if True in msg_dict.values() and self.master.flightmode == 'AUTO': #make sure we are in AUTO
                 for key in msg_dict:
-                    if msg_dict[key] == True and self.master.flightmode == 'AUTO':
-                        self.auto_submode = key
+                    if msg_dict[key] == True: #find the submode we are in
+                        self.auto_submode = key #grab the submode name
+                        if self.auto_submode in ['cland1', 'cland2', 'cland3']:
+                            self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
+                        else:
+                            #were in a submode bunt not a cland mode...
+                            self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
                         
-                        self.mpstate.rl.set_prompt(self.master.flightmode+' ['+self.auto_submode.upper()+']> ')
-            else:
-                self.auto_submode = None
-                self.mpstate.rl.set_prompt(self.mpstate.status.flightmode+'> ')
+                        self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper())) #change the prompt to include the submode
+                        
+            else: #we are not in a submode
+                self.auto_submode = "NONE"
+                self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='grey')
+                self.mpstate.rl.set_prompt('%s>' % self.master.flightmode) #set the prompt to default
             
 
     def idle_task(self):
