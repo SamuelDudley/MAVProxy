@@ -57,12 +57,9 @@ class CLANDModule(mp_module.MPModule):
         self.row_4 = self.row_3 + 1
         self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_4)
         
-        self.cland_settings = mp_settings.MPSettings([("rlim", float, 20),  # +-roll limits     [degrees]
-                                                      ("plim", float, 15),  # +-pitch limits    [degrees]
-                                                      ("amax", float, 10000),  # max altitude    [wgs84? meters]
-                                                      ("amin", float, 0),  # min altitude    [wgs84? meters]
-                                                      ("tlim", float, 5),  # EST_TELE timeout limit   [seconds]
+        self.cland_settings = mp_settings.MPSettings([("tlim", float, 5),  # EST_TELE timeout limit   [seconds]
                                                       ("elim", float, 100),  # pos error limit [meters]
+                                                      ("mode", int, 0),  # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
                                                       ("line", bool, True)]) # show the line that links the est pos to the true pos
         
         self.add_command('cland', self.cmd_cland, ["cland control",
@@ -119,27 +116,27 @@ class CLANDModule(mp_module.MPModule):
 
     def send_cland_start(self):
         '''send a command to start the CLAND mode'''
-        print("Sent DO_START_CLAND1")
+        print("Sent DO_START_CLAND")
         self.master.mav.command_long_send(
             self.settings.target_system,  # target_system
             0, # target_component
-            mavutil.mavlink.MAV_CMD_DO_START_CLAND1, # command
+            mavutil.mavlink.MAV_CMD_DO_START_CLAND, # command
             0, # confirmation
-            self.cland_settings.rlim, # Roll limits (degrees)
-            self.cland_settings.plim, # Pitch limits (degrees)
-            self.cland_settings.amin, # Min Alt (m)
-            self.cland_settings.amax, # Max Alt (m)
             self.cland_settings.elim, # Max EST error (m)
             self.cland_settings.tlim, # EST_TELE timeout limit (seconds)
+            self.cland_settings.mode, # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
+            0, # empty
+            0, # empty
+            0, # empty
             0) # empty
         
     def send_cland_stop(self):
         '''send a command to stop the CLAND mode'''
-        print("Sent DO_STOP_CLAND1")
+        print("Sent DO_STOP_CLAND")
         self.master.mav.command_long_send(
             self.settings.target_system,  # target_system
             0, # target_component
-            mavutil.mavlink.MAV_CMD_DO_STOP_CLAND1, # command
+            mavutil.mavlink.MAV_CMD_DO_STOP_CLAND, # command
             0, # confirmation
             0, # param1
             0, # param2
