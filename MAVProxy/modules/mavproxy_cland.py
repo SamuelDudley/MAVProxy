@@ -57,11 +57,12 @@ class CLANDModule(mp_module.MPModule):
         self.row_4 = self.row_3 + 1
         self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_4)
         
-        self.cland_settings = mp_settings.MPSettings([("tlim", float, 5),  # EST_TELE timeout limit   [seconds]
-                                                      ("elim", float, 100),  # pos error limit [meters]
+        self.cland_settings = mp_settings.MPSettings([("tlim", int, 5),  # EST_TELE timeout limit   [seconds]
+                                                      ("elim", int, 100),  # pos error limit [meters]
                                                       ("mode", int, 0),  # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
+                                                      ("dmax", int, 1000),  # Maximum duration to remain in C-LAND submode [seconds]
                                                       ("line", bool, True)]) # show the line that links the est pos to the true pos
-        
+        ma
         self.add_command('cland', self.cmd_cland, ["cland control",
                                                  "<status>",
                                                  "<reset>",
@@ -125,7 +126,7 @@ class CLANDModule(mp_module.MPModule):
             self.cland_settings.elim, # Max EST error (m)
             self.cland_settings.tlim, # EST_TELE timeout limit (seconds)
             self.cland_settings.mode, # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
-            0, # empty
+            self.cland_settings.dmax, # Maximum duration to remain in C-LAND submode (seconds)
             0, # empty
             0, # empty
             0) # empty
@@ -271,7 +272,7 @@ class CLANDModule(mp_module.MPModule):
                 self.estimators[id].map_line.set_hidden(not self.cland_settings.line)
                 if self.mpstate.map:  # if the map is loaded...
                     self.mpstate.map.add_object(self.estimators[id].map_line)
-            
+        
         if m.get_type() == 'AUTO_SUBMODE':
             '''tell the operator what the submode is via a prompt change'''
             msg_dict = m.to_dict()
@@ -291,7 +292,19 @@ class CLANDModule(mp_module.MPModule):
                 self.auto_submode = "NONE"
                 self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='grey')
                 self.mpstate.rl.set_prompt('%s>' % self.master.flightmode) #set the prompt to default
-            
+        
+        if m.get_type() == "NAV_CONTROLLER_OUTPUT":
+            if (self.master.flightmode == "AUTO" and self.auto_submode in ['cland1', 'cland2', 'cland3']):
+                
+                self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('Trajectory')) #this will hide the default trajectory line
+                
+                for id in self.estimators: #this will show the cland est trajectory
+                    trajectory = [ (self.estimators[id].state['lat']* 1e-7, self.estimators[id].state['lon']* 1e-7),
+                                   mp_util.gps_newpos(self.estimators[id].state['lat']* 1e-7, self.estimators[id].state['lon']* 1e-7,
+                                                      m.target_bearing, m.wp_dist) ]
+                    self.mpstate.map.add_object(mp_slipmap.SlipPolygon('trajectory', trajectory, layer='Trajectory',
+                                                                       linewidth=2, colour=(180,0,255)))
+
 
     def idle_task(self):
         '''called on idle'''
