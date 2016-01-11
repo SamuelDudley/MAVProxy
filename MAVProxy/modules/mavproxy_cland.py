@@ -62,12 +62,14 @@ class CLANDModule(mp_module.MPModule):
                                                       ("mode", int, 0),  # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
                                                       ("dmax", int, 1000),  # Maximum duration to remain in C-LAND submode [seconds]
                                                       ("line", bool, True)]) # show the line that links the est pos to the true pos
-        ma
+        
         self.add_command('cland', self.cmd_cland, ["cland control",
                                                  "<status>",
                                                  "<reset>",
                                                  "set (CLANDSETTING)"])
         
+        mpstate.public_modules['map'].map_settings.loitercircle = True # Show loiter radius on map 
+        mpstate.public_modules['map'].map_settings.showgps2pos = 0 # Hide the second GPS pos from the map
         
 
     def cmd_cland(self, args):
