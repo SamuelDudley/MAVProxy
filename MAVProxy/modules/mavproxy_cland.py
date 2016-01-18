@@ -13,6 +13,7 @@ from MAVProxy.modules.lib import mp_settings
 from MAVProxy.modules.lib.mp_menu import *  # popup menus
 from pymavlink import mavutil
 
+exp_mode=["none","cland1","cland2","cland3","systemid","ofdrift"]
 
 class Estimator(object):
     '''a generic estimator'''
@@ -47,7 +48,8 @@ class CLANDModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CLANDModule, self).__init__(mpstate, "cland", "C-LAND trials support")
         self.estimators = {}
-        self.auto_submode = 'NONE'
+        global exp_mode
+        self.submode = exp_mode[0]
         self.row_1 = 4
         self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_1)
         self.row_2 = self.row_1 + 1
@@ -277,18 +279,15 @@ class CLANDModule(mp_module.MPModule):
         
         if m.get_type() == 'AUTO_SUBMODE':
             '''tell the operator what the submode is via a prompt change'''
-            msg_dict = m.to_dict()
-            if True in msg_dict.values() and self.master.flightmode == 'AUTO': #make sure we are in AUTO
-                for key in msg_dict:
-                    if msg_dict[key] == True: #find the submode we are in
-                        self.auto_submode = key #grab the submode name
-                        if self.auto_submode in ['cland1', 'cland2', 'cland3']:
-                            self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
-                        else:
-                            #were in a submode bunt not a cland mode...
-                            self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
+            if self.master.flightmode == 'AUTO': #make sure we are in AUTO
+                    self.auto_submode = exp_mode[m.experimental_mode] #grab the submode name
+                    if self.auto_submode in ['cland1', 'cland2', 'cland3']:
+                        self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
+                    else:
+                        #were in a submode bunt not a cland mode...
+                        self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
                         
-                        self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper())) #change the prompt to include the submode
+                    self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper())) #change the prompt to include the submode
                         
             else: #we are not in a submode
                 self.auto_submode = "NONE"
