@@ -13,7 +13,6 @@ from MAVProxy.modules.lib import mp_settings
 from MAVProxy.modules.lib.mp_menu import *  # popup menus
 from pymavlink import mavutil
 
-exp_mode=["none","cland1","cland2","cland3","systemid","ofdrift"]
 
 class Estimator(object):
     '''a generic estimator'''
@@ -48,8 +47,8 @@ class CLANDModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CLANDModule, self).__init__(mpstate, "cland", "C-LAND trials support")
         self.estimators = {}
-        global exp_mode
-        self.submode = exp_mode[0]
+        self.experimental_mode= {0:"none",1:"cland1",2:"cland2",3:"cland3",4:"systemid",5:"ofdrift"}
+        self.auto_submode = self.experimental_mode[0]
         self.row_1 = 4
         self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_1)
         self.row_2 = self.row_1 + 1
@@ -280,19 +279,38 @@ class CLANDModule(mp_module.MPModule):
         if m.get_type() == 'AUTO_SUBMODE':
             '''tell the operator what the submode is via a prompt change'''
             if self.master.flightmode == 'AUTO': #make sure we are in AUTO
-                    self.auto_submode = exp_mode[m.experimental_mode] #grab the submode name
-                    if self.auto_submode in ['cland1', 'cland2', 'cland3']:
-                        self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
+                submodes = [key for key in m.to_dict().keys() if (key != 'mavpackettype' and m.to_dict()[key] > 0)]
+                # ^ gets all the non-zero submodes from the msg and puts them into a list
+                
+                if len(submodes) == 0:
+                    # we are not in a submode
+                    self.auto_submode = "NONE"
+                    self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='grey')
+                    self.mpstate.rl.set_prompt('%s>' % self.master.flightmode) #set the prompt to default
+                    
+                elif len(submodes) == 1:
+                    # we are in a submode
+                    self.auto_submode = submodes[0] #grab the submode name
+                    if self.auto_submode == 'experimental_mode': # check to see if its an experimental mode
+                        # if so get the experimental mode name from its number
+                        self.auto_submode = self.experimental_mode[m.to_dict()[self.auto_submode]]
+                        
+                        if self.auto_submode in ['cland1', 'cland2', 'cland3']: #check to see if we are in a cland mode
+                            self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
                     else:
-                        #were in a submode bunt not a cland mode...
+                        #were in a submode but not a cland mode...
                         self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
-                        
-                    self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper())) #change the prompt to include the submode
-                        
-            else: #we are not in a submode
-                self.auto_submode = "NONE"
-                self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='grey')
-                self.mpstate.rl.set_prompt('%s>' % self.master.flightmode) #set the prompt to default
+                    
+                    # change the prompt to include the submode    
+                    self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper())) 
+                    
+                else:
+                    # we are in more than one submode... this is bad
+                    self.auto_submode = 'error'
+                    self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='red')
+                    self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper()))
+
+                
         
         if m.get_type() == "NAV_CONTROLLER_OUTPUT":
             if (self.master.flightmode == "AUTO" and self.auto_submode in ['cland1', 'cland2', 'cland3']):
