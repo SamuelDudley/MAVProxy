@@ -269,18 +269,19 @@ def count_msg_types(progress_callback=None):
     log_min = min([mestate.arrays[x].min_timestamp for x in mestate.arrays])
     log_max = max([mestate.arrays[x].max_timestamp for x in mestate.arrays])
     
-  
+    flightmode_list = []
     mode = mestate.arrays['MODE'].Mode
     mode_timestamp = mestate.arrays['MODE'].timestamp
     last_mode = None
     last_time = log_min
     for idx, mode_num in enumerate(mode):
         if mode_num != last_mode:
-            self.flightmode_list.append({last_mode:(mode_timestamp[idx]-last_time)})
+            flightmode_list.append({last_mode:(mode_timestamp[idx]-last_time)})
             last_mode = mode_num
             last_time = mode_timestamp[idx]
-            
-    self.flightmode_list.append({last_mode:(log_max - mode_timestamp[-1])})
+             
+    flightmode_list.append({last_mode:(log_max - mode_timestamp[-1])})
+    print flightmode_list
         
 class MEFlightmode(object):
     def __init__(self, number, s_global = None , e_global = None, s_local = None, e_local = None):
