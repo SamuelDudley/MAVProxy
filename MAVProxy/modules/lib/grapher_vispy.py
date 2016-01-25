@@ -20,6 +20,7 @@ from pymavlink.mavextra import *
 from pymavlink import mavutil
 from numpy import * #needed for sqrt on arrays
 
+
 colourmap = {
     'apm' : {
         'MANUAL'    : (1.0,   0,   0),
@@ -64,25 +65,39 @@ class MavGraphVispy(object):
         self.fig.connect(self.on_mouse_press)
         self.fig.connect(self.on_mouse_move)
         self.fig.connect(self.on_mouse_wheel)
+        self.fig.connect(self.on_key_press)
         self.fig.connect(self.on_draw)
         self.linked = False
         self.fields = []
         self.lables = True
-        self.grid = None
+        self.show_grid = False # used to toggle the grid on and off with self.update_grid()
+        self.grid = None # holds the grid vispy element
         self.stats = False
         self.xaxis = None
         self.condition = None
         self.flightmode = None
         self.send_queue = send_queue
         self.recv_queue = recv_queue
+        self.cursor_pos_x = None
+        self.cursor_pos_y = None
         
     def add_field(self, field):
         '''add another field to plot'''
         self.fields.append(field)
-        
+    
     def set_grid(self, choice):
-        '''control if a grid is shown'''
         if choice == 'on':
+            choice = True
+        elif choice == True:
+            pass
+        else:
+            choice = False
+        self.show_grid = choice
+        self.update_grid()
+    
+    def update_grid(self):
+        '''control if a grid is shown'''
+        if self.show_grid:
             self.grid_on()
         else:
             self.grid_off()
@@ -90,14 +105,18 @@ class MavGraphVispy(object):
     def grid_on(self):
         self.grid = vp.visuals.GridLines(color=(0, 0, 0, 0.5))
         self.grid.set_gl_state('translucent')
+        self.grid.order = 9
+        self.grid.visible
         self.fig[0, 0].view.add(self.grid)
+        
     
     def grid_off(self):
         if self.grid is not None:
-            try:
-                pass #remove grid here
-            except:
-                print 'error removing grid'
+            self.grid.visible = False
+#             try:
+#                 pass #remove grid here
+#             except:
+#                 print 'error removing grid'
     
     def set_legend(self, choice):
         '''set graph legend'''
@@ -224,7 +243,7 @@ class MavGraphVispy(object):
         for msg_type in msg_types:
             if msg_type in vars:
                 msg_type_min = evaluate_expression(msg_type+'.min_timestamp', vars)
-            
+                msg_type_min
            
             if msg_type_min is not None:
                 if x_min is None or msg_type_min < x_min:
@@ -244,6 +263,7 @@ class MavGraphVispy(object):
            
             
             v = evaluate_expression(f, vars)
+
             
             if self.xaxis is None:
                 for msg_type in msg_types:
@@ -253,21 +273,22 @@ class MavGraphVispy(object):
                 x = mavutil.evaluate_expression(self.xaxis, vars)
             
                     
-#                     a = np.vectorize(datetime.datetime.fromtimestamp)
-#                     x = range(len(v))
-#                     print a(evaluate_expression(msg_type+'.timestamp', vars))
+#             a = np.vectorize(datetime.datetime.fromtimestamp)
+# #                     x = range(len(v))
+#             print a(evaluate_expression(msg_type+'.timestamp', vars))
 
             if self.condition:
                 #generate masked array in place
-                v = np.ma.masked_where(evaluate_expression(self.condition, vars), v, copy=False)
-                v.mask = ~v.mask #invet the mask to match the logic of the condition
-                x = ma.masked_array(x)
-                
-                x.mask = v.mask
-                
-                v = v.compressed() #makes a copy of the array and uses memory...
-                x = x.compressed() #prhaps just change the colour of valid parts?
-                #v = np.extract(evaluate_expression(self.condition, vars), v)
+                mask = v[evaluate_expression(self.condition, vars)]
+                print mask
+#                 v.mask = ~v.mask #invet the mask to match the logic of the condition
+#                 x = ma.masked_array(x)
+#                 
+#                 x.mask = v.mask
+#                 
+#                 v = v.compressed() #makes a copy of the array and uses memory...
+#                 x = x.compressed() #perhaps just change the colour of valid parts?
+#                 #v = np.extract(evaluate_expression(self.condition, vars), v)
                 
             
             
@@ -309,6 +330,8 @@ class MavGraphVispy(object):
         if (self.linked and master_rect != None):
             if master_rect.left != rect.left and master_rect.right != rect.right:
                 self.set_cam(obj.rect)
+        if self.cursor_line.visible and self.cursor_pos_x is not None:
+            self.cursor_line.set_data(np.array([[self.cursor_pos_x, rect.bottom], [self.cursor_pos_x, rect.top]]))
         self.plt.update()
         
     def on_mouse_press(self, event):
@@ -361,6 +384,8 @@ class MavGraphVispy(object):
                     self.stats_text_lower.text = "min=%0.2f, max=%0.2f" % (selected_min,selected_max)
                 except:
                     pass
+            
+            
 
             
             
@@ -396,15 +421,42 @@ class MavGraphVispy(object):
             self.stats_text_lower.pos = x + stats_offset_lower[0, 0], y + stats_offset_lower[0, 1]
             
             rect = self.plt.view.camera.rect
-            self.cursor_line.set_data(np.array([[x, rect.bottom], [x, rect.top]]))
+#             self.cursor_line.set_data(np.array([[x, rect.bottom], [x, rect.top]])) # this is handled in the on_draw() fn
             self.cursor_symbol.set_data(pos=np.array([[x, y]]), symbol='+',
                                    face_color='b')
+            self.cursor_pos_x = x
+            self.cursor_pos_y = y
             self.cursor_text.visible = True
             self.cursor_line.visible = True
             self.cursor_symbol.visible = True
+            self.update_stats()
+    
+    def update_stats(self):
+            if self.stats:
+                self.stats_text_upper.visible = True
+                self.stats_text_lower.visible = True
+            else:
+                # dont show the stats as they are no longer updating...
+                self.stats_text_upper.visible = False
+                self.stats_text_lower.visible = False
             
-            self.stats_text_upper.visible = True
-            self.stats_text_lower.visible = True
+            
+    
+    def on_key_press(self, event):
+        if event.text == 's':
+            self.stats = not self.stats # toggle stats display
+            self.update_stats()
+            
+        elif event.text == 'g':
+            self.show_grid = not self.show_grid # toggle grid display
+            self.update_grid()
+            
+        elif event.text == 'm':
+            self.show_grid = not self.show_grid # toggle grid display
+            self.update_grid()
+            
+        else:
+            print event.text
     
     def show(self):
         self.cam_home = self.get_cam().get_state()['rect']

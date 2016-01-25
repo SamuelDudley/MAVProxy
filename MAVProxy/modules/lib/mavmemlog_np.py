@@ -2,9 +2,15 @@
 
 from pymavlink import mavutil
 
+import numpy as np
+import struct
+import memory_profiler
+
+
 class mavmemlog(mavutil.mavfile):
     '''a MAVLink log in memory. This allows loading a log into
     memory to make it easier to do multiple sweeps over a log'''
+#     @profile
     def __init__(self, mav, progress_callback=None):
         mavutil.mavfile.__init__(self, None, 'memlog')
         self._msgs = []
@@ -15,14 +21,73 @@ class mavmemlog(mavutil.mavfile):
         last_timestamp = None
         last_pct = 0
         
+        self.ignore = ['FMT', 'PARM', 'MSG']
+        self.write_flag = False
+        self.fds = {}
+        self.dtypes = {}
+        self.msg_mults = {}
+        self.struct_fmts= {}
+        
+        self.message_count = {}
+        self.message_field_count = {}
+        
+        import os, shutil
+        folder = '/tmp/mav'
+        for the_file in os.listdir(folder):
+            file_path = os.path.join(folder, the_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                #elif os.path.isdir(file_path): shutil.rmtree(file_path)
+            except Exception, e:
+                print e
+        
         while True:
             m = mav.recv_msg()
             if m is None:
                 break
+            
             if int(mav.percent) != last_pct and progress_callback:
                 progress_callback(int(mav.percent))
                 last_pct = int(mav.percent)
-            self._msgs.append(m)
+#             self._msgs.append(m)
+            
+            
+            type = m.get_type()
+            if type in self.ignore:
+                self.write_flag = False
+            else:
+                self.write_flag = True
+                
+#             print type
+            if type not in self.message_count.keys() and self.write_flag:
+                # if this is the first of the msg type
+                self.message_count[type] = 0
+                
+                struct_fmt = m.fmt.msg_struct # a string used to discribe how to pack the vars
+                struct_fmt+='d'
+                self.struct_fmts[type] = struct_fmt
+                
+                struct_columns = m.fmt.columns # the names of the cols
+                struct_columns.append('timestamp')
+#                 struct_fmt = '<'+'d'*len(struct_columns)
+                msg_mults = m.fmt.msg_mults # mults to apply later
+                msg_mults.append(None) #for the timestamp
+                self.msg_mults[type]= {key:value for key, value in zip(struct_columns,msg_mults)}
+                
+                self.fds[type] = open('/tmp/mav/'+type+'.np', 'ab')
+                
+                msg_dtype = np.dtype(zip(struct_columns,[struct_fmt[0]+x for x in struct_fmt[1:]]))
+                self.dtypes[type] = msg_dtype
+                # get the field names and make colums
+                self.message_field_count[type] = struct_columns
+                        
+            if self.write_flag:
+                self.message_count[type] += 1
+                struct_elements = m._elements # the raw values
+                struct_elements.append(m._timestamp)
+                self.fds[type].write(struct.pack(self.struct_fmts[type], *struct_elements))
+#             now we know how many of each msg we have and the fields that they contain...
             if mav.flightmode != last_flightmode:
                 if len(self._flightmodes) > 0:
                     (mode, t1, t2) = self._flightmodes[-1]
@@ -35,31 +100,17 @@ class mavmemlog(mavutil.mavfile):
         if last_timestamp is not None and len(self._flightmodes) > 0:
             (mode, t1, t2) = self._flightmodes[-1]
             self._flightmodes[-1] = (mode, t1, last_timestamp)
+        self.close_fds()
         
-
-    def recv_msg(self):
-        '''message receive routine'''
-        if self._index >= self._count:
-            return None
-        m = self._msgs[self._index]
-        type = m.get_type()
-        self._index += 1
-        self.percent = (100.0 * self._index) / self._count
-        self.messages[type] = m
+        if progress_callback:
+            progress_callback(int(100))
+        mav.data = None
         
+    def close_fds(self):
+        for key in self.fds.keys():
+            self.fds[key].flush()
+            self.fds[key].close()
         
-            
-        self._timestamp = m._timestamp
-
-        if self._flightmode_index < len(self._flightmodes):
-            (mode, tstamp, t2) = self._flightmodes[self._flightmode_index]
-            if m._timestamp >= tstamp:
-                self.flightmode = mode
-                self._flightmode_index += 1
-
-        self.check_param(m)
-        return m
-
     def check_param(self, m):
         type = m.get_type()
         if type == 'PARAM_VALUE':
@@ -67,7 +118,9 @@ class mavmemlog(mavutil.mavfile):
             self.params[str(m.param_id)] = m.param_value
         elif type == 'PARM' and getattr(m, 'Name', None) is not None:
             self.params[m.Name] = m.Value
+    
 
+    
     def rewind(self):
         '''rewind to start'''
         self._index = 0
@@ -82,25 +135,61 @@ class mavmemlog(mavutil.mavfile):
     def flightmode_list(self):
         '''return list of all flightmodes as tuple of mode and start time'''
         return self._flightmodes
+    
+# @profile
+def test():
+    #     DFFormat(144,GPS2,BIHBcLLeEefIBI,['Status', 'TimeMS', 'Week', 'NSats', 'HDop', 'Lat', 'Lng', 'Alt', 'Spd', 'GCrs', 'VZ', 'T', 'DSc', 'DAg'])
+#     <BIHBhiiiIifIBI
+#     ['Status', 'TimeMS', 'Week', 'NSats', 'HDop', 'Lat', 'Lng', 'Alt', 'Spd', 'GCrs', 'VZ', 'T', 'DSc', 'DAg']
+#     [1, 1988889216, 48446, 12, 116, -309283263, 1365452053, 13014, 4, 14259, -0.0240020751953125, 22895, 0, 0]
+#     [None, None, None, None, 0.01, 1e-07, 1e-07, 0.01, 0.01, 0.01, None, None, None, None]
+#     1 1988889216 48446 12 1.16 -30.9283263 136.5452053 130.14 0.04 142.59 -0.0240020751953 22895 0 0
+#     bina = struct.pack("<dddddddddddddd", *[1, 1988889216, 48446, 12, 116, -309283263, 1365452053, 13014, 4, 14259, -0.0240020751953125, 22895, 0, 0])
+    bina = struct.pack("<BIHBhiiiIifIBI", *[1, 1988889216, 48446, 12, 116, -309283263, 1365452053, 13014, 4, 14259, -0.0240020751953125, 22895, 0, 0])
 
-    def reduce_by_flightmodes(self, flightmode_selections):
-        '''reduce data using flightmode selections'''
-        if len(flightmode_selections) == 0:
-            return
-        all_false = True
-        for s in flightmode_selections:
-            if s:
-                all_false = False
-        if all_false:
-            # treat all false as all modes wanted'''
-            return
-        new_msgs = []
-        idx = 0
-        for m in self._msgs:
-            while idx < len(self._flightmodes) and m._timestamp >= self._flightmodes[idx][2]:
-                idx += 1
-            if idx < len(flightmode_selections) and flightmode_selections[idx]:
-                new_msgs.append(m)
-        self._msgs = new_msgs
-        self._count = len(new_msgs)
-        self.rewind()
+
+    fmt =  "<BIHBhiiiIifIBI"
+    
+    print len(fmt)
+    bits = [None, None, None, None, 0.01, 1e-07, 1e-07, 0.01, 0.01, 0.01, None, None, None, None]
+    fie = ['Status', 'TimeMS', 'Week', 'NSats', 'HDop', 'Lat', 'Lng', 'Alt', 'Spd', 'GCrs', 'VZ', 'T', 'DSc', 'DAg']
+    #fmt = '<'+'d'*len(bits)
+    print len(fmt)
+
+    fin = [fmt[0]+x for x in fmt[1:]]
+    
+    
+    
+    print fin
+    
+    print zip(fie,fin)
+    
+    gps_type = np.dtype(zip(fie,fin))
+    
+
+    fmt = '<'+'d'*len(bits)
+    fin = [fmt[0]+x for x in fmt[1:]]
+    double_type = np.dtype(zip(fie,fin))
+    f = open('temp.np', mode='wb')
+    count = 0
+    while count < 100000:
+        f.write(bina)
+        count +=1
+    f.close()
+    a = np.fromfile('temp.np', dtype=gps_type)
+    one = (a.nbytes)*10**-6
+    print 'pre', one, 'MiB'
+    a=  a.astype(dtype=double_type, casting='safe', subok=False, copy=False)
+    two =(a.nbytes)*10**-6
+    print 'post', two, 'MiB'
+    print 'diff', two-one, 'MiB'
+    a[:]['Lat']*= 1e-7
+    
+    print a
+
+if __name__ == "__main__":
+    import numpy as np
+    import struct
+    import memory_profiler
+    test()
+
