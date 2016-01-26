@@ -186,6 +186,30 @@ def test():
     a[:]['Lat']*= 1e-7
     
     print a
+    color = [0,1,2,3]
+    N = len(a)
+    
+    
+    
+    f_color = np.ones((N, 4), dtype=np.float32)
+    f_color[:, 0] = np.linspace(0, 1, N)
+    f_color[:, 1] = f_color[::-1, 0]
+    print f_color.shape
+    
+    #true colour array
+    color = np.asarray(color, dtype=np.float32)
+    
+    t_color = np.array([color,]*N)
+    #t_color = t_color.reshape((N, 4))
+    print t_color.shape
+    
+    mask =np.ones(N, dtype=np.bool)
+    mask = np.repeat(mask, 4)
+    mask = mask.reshape((N, 4))
+    print mask.shape
+    print t_color 
+    print np.copyto(t_color, f_color, where=mask)
+    print t_color
 
 if __name__ == "__main__":
     import numpy as np

@@ -135,49 +135,25 @@ class MEData(object):
         
     def get_type(self):
         return self.type
-    
 
 
 
-
-
-    
-
-def graph_process(fields):
-    '''process for a graph'''
-    mestate.mlog.reduce_by_flightmodes(mestate.flightmode_selections)
-    
-    mg = grapher.MavGraph()
-    mg.set_marker(mestate.settings.marker)
-    mg.set_condition(mestate.settings.condition)
-    mg.set_xaxis(mestate.settings.xaxis)
-    mg.set_linestyle(mestate.settings.linestyle)
-    mg.set_flightmode(mestate.settings.flightmode)
-    mg.set_legend(mestate.settings.legend)
-    mg.add_mav(mestate.mlog)
-    for f in fields:
-        mg.add_field(f)
-    mg.process()
-    mg.show()
-
-
-
-
-def map_process(args):
-    '''process for a graph'''
-    from mavflightview import mavflightview_mav, mavflightview_options
-    mestate.mlog.reduce_by_flightmodes(mestate.flightmode_selections)
-    
-    options = mavflightview_options()
-    options.condition = mestate.settings.condition
-    if len(args) > 0:
-        options.types = ','.join(args)
-    mavflightview_mav(mestate.mlog, options)
-
-def cmd_map(args):
-    '''map command'''
-    child = multiprocessing.Process(target=map_process, args=[args])
-    child.start()
+#will replace this with the cesium plugin
+# def map_process(args):
+#     '''process for a graph'''
+#     from mavflightview import mavflightview_mav, mavflightview_options
+#     mestate.mlog.reduce_by_flightmodes(mestate.flightmode_selections)
+#     
+#     options = mavflightview_options()
+#     options.condition = mestate.settings.condition
+#     if len(args) > 0:
+#         options.types = ','.join(args)
+#     mavflightview_mav(mestate.mlog, options)
+# 
+# def cmd_map(args):
+#     '''map command'''
+#     child = multiprocessing.Process(target=map_process, args=[args])
+#     child.start()
 
 class Hawkview(object):
     def __init__(self, files):
@@ -230,12 +206,12 @@ class Hawkview(object):
 
     def cmd_set(self, args):
         '''control MAVExporer options'''
-        self.mestate = mestate
+        mestate = self.mestate
         mestate.settings.command(args)
 
     def cmd_condition(self, args):
         '''control MAVExporer conditions'''
-        self.mestate = mestate
+        mestate = self.mestate
         if len(args) == 0:
             print("condition is: %s" % mestate.settings.condition)
             return
@@ -243,14 +219,14 @@ class Hawkview(object):
     
     def cmd_reload(self, args):
         '''reload graphs'''
-        self.mestate = mestate
-        load_graphs()
-        setup_menus()
+        mestate = self.mestate
+        self.load_graphs()
+        self.setup_menus()
         mestate.console.write("Loaded %u graphs\n" % len(mestate.graphs))
     
     def cmd_param(self, args):
         '''show parameters'''
-        self.mestate = mestate
+        mestate = self.mestate
         if len(args) > 0:
             wildcard = args[0]
         else:
@@ -427,42 +403,9 @@ class Hawkview(object):
                         
             time.sleep(0.1)
             
-    def reduce_by_flightmodes(self, flightmode_selections):
-        '''reduce data using flightmode selections'''
-        if len(flightmode_selections) == 0:
-            return
-        all_false = True
-        for s in flightmode_selections:
-            if s:
-                all_false = False
-        if all_false:
-            # treat all false as all modes wanted'''
-            return
-        # otherwise there are specific flight modes we have selected to plot
-        times = []
-        times = [(mode[1],mode[2]) for (idx, mode) in enumerate(self.mestate.mlog._flightmodes) if self.mestate.flightmode_selections[idx]]
-        
-        print 'times', times
-        for msg_type in self.mestate.arrays.keys():
-            mask = None
-            for (t0, t1) in times:
-                if mask is not None:
-                    mask += (self.mestate.arrays[msg_type].timestamp >= t0) & (self.mestate.arrays[msg_type].timestamp <= t1)
-                else:
-                    mask = (self.mestate.arrays[msg_type].timestamp >= t0) & (self.mestate.arrays[msg_type].timestamp <= t1)
-            
-#             mask = ~mask #invert the mask
-            print mask
-            print len(self.mestate.arrays[msg_type].data)
-            self.mestate.arrays[msg_type].data = self.mestate.arrays[msg_type].data[mask]
-            print len(self.mestate.arrays[msg_type].data)
-            
 
-
-    
     def graph_process_vispy(self, args):
         '''process for a vispy graph'''
-        self.reduce_by_flightmodes(self.mestate.flightmode_selections)
         fields = args[0:-2]
         
         send_queue = args[-2]
@@ -478,7 +421,8 @@ class Hawkview(object):
         
         mgv.set_condition(self.mestate.settings.condition)
         mgv.set_xaxis(self.mestate.settings.xaxis)
-        mgv.set_flightmode(self.mestate.settings.flightmode)
+        mgv.set_flightmode_data(self.mestate.mlog._flightmodes)
+        mgv.set_flightmodes(self.mestate.flightmode_selections)
         mgv.set_data(self.mestate.arrays)
         mgv.set_legend(self.mestate.settings.legend)
         mgv.process()

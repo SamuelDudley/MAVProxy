@@ -75,7 +75,8 @@ class MavGraphVispy(object):
         self.stats = False
         self.xaxis = None
         self.condition = None
-        self.flightmode = None
+        self.flightmodes = []
+        self.flightmode_data = []
         self.send_queue = send_queue
         self.recv_queue = recv_queue
         self.cursor_pos_x = None
@@ -138,8 +139,10 @@ class MavGraphVispy(object):
         vspacer.stretch = (1, 2)
         labelgrid.add_widget(vspacer, row=1, col=1)
         
-        labels = [vp.Label('%s' % line.label, color=line.color, anchor_x='right', anchor_y='center' )
+        labels = [vp.Label('%s' % line.label, color=line.true_color, anchor_x='right', anchor_y='center' )
                   for line in self.lines]
+#         labels = [vp.Label('%s' % line.label, anchor_x='right', anchor_y='center' )
+#                   for line in self.lines]
     
         boxgrid = box.add_grid()
         for i, label in enumerate(labels):
@@ -156,9 +159,13 @@ class MavGraphVispy(object):
         '''set graph condition'''
         self.condition = condition
         
-    def set_flightmode(self, flightmode):
+    def set_flightmodes(self, flightmodes):
+        '''set graph flightmode(s)'''
+        self.flightmodes = flightmodes
+    
+    def set_flightmode_data(self, flightmode_data):
         '''set graph flightmode'''
-        self.flightmode = flightmode
+        self.flightmode_data = flightmode_data
         
     def set_cam(self, cam_rect):
         self.plt.camera.set_state({'rect':cam_rect})
@@ -229,7 +236,6 @@ class MavGraphVispy(object):
         cmap = get_colormap('hsl', value=0.5)
         colors = cmap.map(np.linspace(0.1, 0.9, len(self.fields)))
         
-        
         msg_types = set()
         field_types = []
         re_caps = re.compile('[A-Z_][A-Z0-9_]+')
@@ -276,11 +282,15 @@ class MavGraphVispy(object):
 #             a = np.vectorize(datetime.datetime.fromtimestamp)
 # #                     x = range(len(v))
 #             print a(evaluate_expression(msg_type+'.timestamp', vars))
-
+            color = colors[i] #set the graph colour from the colour map..
+            
             if self.condition:
                 #generate masked array in place
-                mask = v[evaluate_expression(self.condition, vars)]
-                print mask
+                
+                mask = evaluate_expression(self.condition, vars) #because the
+#                 v = v[mask]
+#                 x = x[mask]
+                
 #                 v.mask = ~v.mask #invet the mask to match the logic of the condition
 #                 x = ma.masked_array(x)
 #                 
@@ -289,16 +299,40 @@ class MavGraphVispy(object):
 #                 v = v.compressed() #makes a copy of the array and uses memory...
 #                 x = x.compressed() #perhaps just change the colour of valid parts?
 #                 #v = np.extract(evaluate_expression(self.condition, vars), v)
+
+                # false color array
+                N = len(x)
+                f_color = np.ones((N, 4), dtype=np.float32)
                 
+                #true color array
+                color = np.asarray(color, dtype=np.float32)
+                t_color = np.array([color,]*N)
+                mask=~mask #invert the mask
+                mask = np.repeat(mask, 4)
+                mask = mask.reshape((N, 4))
+                np.copyto(t_color, f_color, where=mask) #  numpy.copyto(dst, src, casting='same_kind', where=None) # NOTE: in place
+                color = t_color
+                
+                
+#             self.reduce_by_flightmodes() #if we have selected a flight mode this will limit what will be shown
             
             
-            line = self.plt.plot((x, v), color=colors[i])
+            
+            
+#             # connection array - does not work with current line, need to plot using base class (not wrapper)
+#             connect = np.empty((N-1, 2), np.int32)
+#             connect[:, 0] = np.arange(N-1)
+#             connect[:, 1] = connect[:, 0] + 1
+#             connect[N/2, 1] = N/2  # put a break in the middle
+            
+            line = self.plt.plot((x, v), color=color)
             line.interactive = True
             line.unfreeze()  # make it so we can add a new property to the instance
             line.data_index = i
             line.x = x
             line.y = v
-            line.color = colors[i]
+            line.color = color
+            line.true_color = colors[i]
             line.label=f
             line.freeze()
             self.lines.append(line)
@@ -385,12 +419,6 @@ class MavGraphVispy(object):
                 except:
                     pass
             
-            
-
-            
-            
-            
-            
             # map the mouse position to data coordinates
             tr = self.fig.scene.node_transform(self.selected)
             pos = tr.map(pos)
@@ -423,7 +451,7 @@ class MavGraphVispy(object):
             rect = self.plt.view.camera.rect
 #             self.cursor_line.set_data(np.array([[x, rect.bottom], [x, rect.top]])) # this is handled in the on_draw() fn
             self.cursor_symbol.set_data(pos=np.array([[x, y]]), symbol='+',
-                                   face_color='b')
+                                   face_color='black', edge_color=None, size=8.)
             self.cursor_pos_x = x
             self.cursor_pos_y = y
             self.cursor_text.visible = True
@@ -439,6 +467,36 @@ class MavGraphVispy(object):
                 # dont show the stats as they are no longer updating...
                 self.stats_text_upper.visible = False
                 self.stats_text_lower.visible = False
+    
+    def reduce_by_flightmodes(self, ):
+        '''reduce data using flightmode selections'''
+        if len(self.flightmodes) == 0:
+            return
+        all_false = True
+        for s in self.flightmodes:
+            if s:
+                all_false = False
+        if all_false:
+            # treat all false as all modes wanted'''
+            return
+        # otherwise there are specific flight modes we have selected to plot
+        times = []
+        times = [(mode[1],mode[2]) for (idx, mode) in enumerate(self.flightmode_data) if self.flightmodes[idx]]
+        
+        print 'times', times
+        for msg_type in self.mestate.arrays.keys():
+            mask = None
+            for (t0, t1) in times:
+                if mask is not None:
+                    mask += (self.mestate.arrays[msg_type].timestamp >= t0) & (self.mestate.arrays[msg_type].timestamp <= t1)
+                else:
+                    mask = (self.mestate.arrays[msg_type].timestamp >= t0) & (self.mestate.arrays[msg_type].timestamp <= t1)
+            
+#             mask = ~mask #invert the mask
+            print mask
+            print len(self.mestate.arrays[msg_type].data)
+            self.mestate.arrays[msg_type].data = self.mestate.arrays[msg_type].data[mask]
+            print len(self.mestate.arrays[msg_type].data)
             
             
     
