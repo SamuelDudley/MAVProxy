@@ -224,10 +224,38 @@ class Hawkview(object):
         time.sleep(1)
         
         self.load_np_arrays(['ATT', 'POS'])
+        print("sending POS")
+        length = len(mestate.arrays['POS'].data)
+        count = 0
+        
+        for msg in mestate.arrays['POS'].data:
+            # we are itterating over rows of data.
+            m = self.cesium_link.global_position_int_encode(#time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg):
+                    msg['TimeUS'], msg['Lat'], msg['Lng'], msg['Alt'], 0, 0, 0, 0, 0)
+            self.cesium_link.send(m)
+            count += 1
+            print 'pos ', count, ' of ', length
+            
+        
+        time.sleep(1)
+        print("sending ATT")
+        length = len(mestate.arrays['ATT'].data)
+        count = 0
         for msg in mestate.arrays['ATT'].data:
             # we are itterating over rows of data.
-            self.cesium_connection.mav
+            self.cesium_link.attitude_send(#time_boot_ms, roll, pitch, yaw, rollspeed, pitchspeed, yawspeed):
+                    msg['TimeMS'], msg['Roll'], msg['Pitch'], msg['Yaw'], 0, 0, 0)
+            count += 1
+            print 'att ', count, ' of ', length
+            
+        time.sleep(1)
+        print("sending TIME")
+        #lastly we need to send the max log time...
+        max_time = max(max(mestate.arrays['POS'].TimeMS), max(mestate.arrays['ATT'].TimeMS))
+        self.cesium_link.timesync_send(#tc1, ts1):
+                                   max_time,0)
          
+        print("Done!")                               
         
         
 
