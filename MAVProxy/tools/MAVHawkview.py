@@ -158,13 +158,13 @@ class MEData(object):
 class Hawkview(object):
     def __init__(self, files):
         
-        
         self.command_map = {
         'graph'      : (self.cmd_graph,     'display a graph'),
         'set'        : (self.cmd_set,       'control settings'),
         'reload'     : (self.cmd_reload,    'reload graphs'),
         'condition'  : (self.cmd_condition, 'set graph conditions'),
         'param'      : (self.cmd_param,     'show parameters'),
+        'play'       : (self.cmd_playback,  'playback log'),
 #         'map'        : (cmd_map,       'show map view'),
         }
         
@@ -203,6 +203,33 @@ class Hawkview(object):
 #                 mestate.exit = True
 #                 sys.exit(1)
 #             mestate.input_queue.put(line)
+
+    def cmd_playback(self, args):
+        mestate = self.mestate
+        
+        self.connected = False
+        
+        while not self.connected:
+            try:
+                self.cesium_connection = mavutil.mavtcp("127.0.0.1:14555")
+                self.connected = True
+            except:
+                time.sleep(0.1)
+                
+        
+        self.cesium_link= mavutil.mavlink.MAVLink(self.cesium_connection)
+        
+        # we have made a connection to the cesium node js server.
+        # start sending the log data...
+        time.sleep(1)
+        
+        self.load_np_arrays(['ATT', 'POS'])
+        for msg in mestate.arrays['ATT'].data:
+            # we are itterating over rows of data.
+            self.cesium_connection.mav
+         
+        
+        
 
     def cmd_set(self, args):
         '''control MAVExporer options'''
@@ -402,6 +429,8 @@ class Hawkview(object):
                         self.mestate.send_queues[idx].put(Camera_Control(slave_rect))
                         
             time.sleep(0.1)
+            
+            
             
 
     def graph_process_vispy(self, args):
