@@ -61,10 +61,10 @@ class CLANDModule(mp_module.MPModule):
         self.row_4 = self.row_3 + 1
         self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_4)
         
-        self.cland_settings = mp_settings.MPSettings([("tlim", int, 500),  # EST_TELE timeout limit   [seconds]
-                                                      ("elim", int, 1000),  # pos error limit [meters]
+        self.cland_settings = mp_settings.MPSettings([("est_tele_time_lim", int, 5),  # EST_TELE timeout limit   [seconds]
+                                                      ("pos_error_lim", int, 1000),  # pos error limit [meters]
                                                       ("mode", int, 0),  # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
-                                                      ("dmax", int, 1000),  # Maximum duration to remain in C-LAND submode [seconds]
+                                                      ("cland_duration_sec", int, 1000),  # Maximum duration to remain in C-LAND submode [seconds]
                                                       ("line", bool, True)]) # show the line that links the est pos to the true pos
         
         self.add_command('cland', self.cmd_cland, ["cland control",
@@ -143,10 +143,10 @@ class CLANDModule(mp_module.MPModule):
             0, # target_component
             mavutil.mavlink.MAV_CMD_DO_START_CLAND, # command
             0, # confirmation
-            self.cland_settings.elim, # Max EST error (m)
-            self.cland_settings.tlim, # EST_TELE timeout limit (seconds)
+            self.cland_settings.pos_error_lim, # Max EST error (m)
+            self.cland_settings.est_tele_time_lim, # EST_TELE timeout limit (seconds)
             self.cland_settings.mode, # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
-            self.cland_settings.dmax, # Maximum duration to remain in C-LAND submode (seconds)
+            self.cland_settings.cland_duration_sec, # Maximum duration to remain in C-LAND submode (seconds)
             0, # empty
             0, # empty
             0) # empty
@@ -172,19 +172,23 @@ class CLANDModule(mp_module.MPModule):
 
     def load_fence(self):
         '''load and draw the CLAND fences'''
+        self.param_set('FENCE_AUTOENABLE', 1,3)
+        self.param_set('FENCE_ACTION', 0,3)
+        self.param_set('FENCE_TOTAL', 0, 3) # clear the fence from the AP
+        #clear the fence points (if any loaded)
+        self.mpstate.public_modules['fence'].points = []
+        self.mpstate.public_modules['fence'].fenceloader.clear()
         for (lat, lon) in self.fence_return():
-            #clear the fence points (if any loaded)
-            self.mpstate.public_modules['fence'].points = []
             #add the cland fence
             self.mpstate.public_modules['fence'].fenceloader.add_latlon(lat, lon)
             
         #send the fence to the ap
         self.mpstate.public_modules['fence'].send_fence()
         #save the fence and draw it on the map
-        self.mpstate.public_modules['fence'].list_fence('fence.txt')
+        self.mpstate.public_modules['fence'].list_fence('cland_fence.txt')
         #draw the second fence (not used by AP logic but enforced by IDP)
         self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
-        
+        self.param_set('FENCE_ACTION', 1,3)
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -418,18 +422,20 @@ class CLANDModule(mp_module.MPModule):
     def fence_return(self):
         '''return the fence points which when crossed will cause the vehicle to enter RTL'''
         points = [
-                  (-30.923611, 136.524444),
-                  (-30.8975, 136.524444),
-                  (-30.8905294594, 136.549311294),
-                  (-30.5267268708, 136.412790802),
-                  (-30.5127803466, 136.462332028),
-                  (-30.9029957688, 136.609393997),
-                  (-30.9094563814, 136.586326039),
-                  (-30.925277, 136.585833),
-                  (-30.9377738859, 136.569449314),
-                  (-30.937778, 136.544722),
-                  (-30.923611, 136.524444)
+                  (-30.910362, 136.556900),
+                  (-30.897497, 136.524445),
+                  (-30.890532, 136.549316),
+                  (-30.526728, 136.412796),
+                  (-30.512781, 136.462326),
+                  (-30.902996, 136.609390),
+                  (-30.909456, 136.586319),
+                  (-30.925278, 136.585831),
+                  (-30.937777, 136.569443),
+                  (-30.937780, 136.544739),
+                  (-30.923611, 136.524445),
+                  (-30.897497, 136.524445)
                  ]
+        
         return points
         
 
