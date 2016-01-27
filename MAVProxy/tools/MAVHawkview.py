@@ -165,6 +165,7 @@ class Hawkview(object):
         'condition'  : (self.cmd_condition, 'set graph conditions'),
         'param'      : (self.cmd_param,     'show parameters'),
         'play'       : (self.cmd_playback,  'playback log'),
+        'json'       : (self.cmd_json,      'write json files'),
 #         'map'        : (cmd_map,       'show map view'),
         }
         
@@ -204,6 +205,54 @@ class Hawkview(object):
 #                 sys.exit(1)
 #             mestate.input_queue.put(line)
 
+    def cmd_json(self, args):
+        import json
+        mestate = self.mestate
+        
+        self.load_np_arrays(['ATT', 'POS'])
+        min_timestamp = min(mestate.arrays['POS'].data[:]["timestamp"])#, mestate.arrays['ATT'].min_timestamp)
+        max_timestamp = max(mestate.arrays['POS'].data[:]["timestamp"])#, mestate.arrays['ATT'].max_timestamp)
+        temp = {'id':"log"}
+        data = []
+        
+        max_length = max(len(mestate.arrays['POS'].data), len(mestate.arrays['ATT'].data))
+        min_length = min(len(mestate.arrays['POS'].data), len(mestate.arrays['ATT'].data))
+        
+        split = (max_timestamp - min_timestamp)/1.0
+        print split
+         
+        
+        for msg in mestate.arrays['POS'].data[:]:
+            diff = msg["timestamp"] - min_timestamp
+            if diff < split:
+                data.append([diff, msg["Lng"], msg["Lat"], msg["Alt"]])
+            
+        entry = {"id":temp['id'],
+                 "type":"POS",
+                 "data":data}
+        with open('POS_json.txt', 'w') as fid:
+            fid.write(json.dumps(entry))
+            fid.flush()
+        fid.close()
+        
+        print("Done POS!")
+        
+        data = []
+        for msg in mestate.arrays['ATT'].data:
+            diff = msg["timestamp"] - min_timestamp
+            if msg["timestamp"] < max_timestamp and msg["timestamp"] > min_timestamp:
+                data.append([ diff, math.radians(msg["Yaw"]), math.radians(msg["Pitch"]), math.radians(msg["Roll"]) ])
+        
+        entry = {"id":temp['id'],
+                 "type":"ATT",
+                 "data":data}
+        with open('ATT_json.txt', 'w') as fid:
+            fid.write(json.dumps(entry))
+            fid.flush()
+        fid.close()
+            
+        print("Done ATT!")
+        
     def cmd_playback(self, args):
         mestate = self.mestate
         
@@ -212,16 +261,21 @@ class Hawkview(object):
         while not self.connected:
             try:
                 self.cesium_connection = mavutil.mavtcp("127.0.0.1:14555")
+                
                 self.connected = True
             except:
                 time.sleep(0.1)
                 
         
         self.cesium_link= mavutil.mavlink.MAVLink(self.cesium_connection)
+        print self.cesium_connection.WIRE_PROTOCOL_VERSION
         
         # we have made a connection to the cesium node js server.
         # start sending the log data...
         time.sleep(1)
+        
+        m = self.cesium_link.heartbeat_encode(type= 1, autopilot = 1, base_mode = 1, custom_mode = 1, system_status = 1)
+        self.cesium_link.send(m)
         
         self.load_np_arrays(['ATT', 'POS'])
         print("sending POS")
@@ -229,10 +283,14 @@ class Hawkview(object):
         count = 0
         
         for msg in mestate.arrays['POS'].data:
+            print msg
             # we are itterating over rows of data.
             m = self.cesium_link.global_position_int_encode(#time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg):
-                    msg['TimeUS'], msg['Lat'], msg['Lng'], msg['Alt'], 0, 0, 0, 0, 0)
+                    #msg['TimeUS'], msg['Lat'], msg['Lng'], msg['Alt'], 0, 0, 0, 0, 0)
+                    0,0,0,0,0,0,0,0,0)
+            print m
             self.cesium_link.send(m)
+
             count += 1
             print 'pos ', count, ' of ', length
             

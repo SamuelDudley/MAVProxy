@@ -32,7 +32,12 @@ class mavmemlog(mavutil.mavfile):
         self.message_field_count = {}
         
         import os, shutil
+        
         folder = '/tmp/mav'
+        
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        
         for the_file in os.listdir(folder):
             file_path = os.path.join(folder, the_file)
             try:
@@ -41,6 +46,7 @@ class mavmemlog(mavutil.mavfile):
                 #elif os.path.isdir(file_path): shutil.rmtree(file_path)
             except Exception, e:
                 print e
+                
         
         while True:
             m = mav.recv_msg()
