@@ -28,11 +28,9 @@ import numpy as np
 from MAVProxy.modules.lib import grapher_vispy
 from MAVProxy.modules.lib import cam_vispy
 
+from MAVProxy.modules.lib.grapher_vispy import *
 
-class Camera_Control(object):
-    def __init__(self, rect):
-        self.rect = rect
-        
+
 class MEStatus(object):
     '''status object to conform with mavproxy structure for modules'''
     def __init__(self):
@@ -53,6 +51,8 @@ class MEState(object):
         self.rl = None
         self.console = wxconsole.MessageConsole(title='MAVHawkview')
         self.exit = False
+
+        
         
         self.status = MEStatus()
         self.settings = MPSettings(
@@ -500,19 +500,34 @@ class Hawkview(object):
                         obj = queue.get()
                     
                     if obj is not None:
-                        self.mestate.master_rect = obj.rect
+                        if isinstance(obj, Camera_State):
+                            self.mestate.master_rect = obj.rect
+                            
+                        elif isinstance(obj, Cursor_Location): # handle cursor location from the graph
+                            (x,y)= obj.loc
+                            import eventlet
+                            from flask_socketio import SocketIO
+                            import redis
+                            eventlet.monkey_patch()
+                            socketio = SocketIO(message_queue='redis://')
+                            socketio.emit('log_time_control', {'log_time': x}, namespace='/test')
+                        
+                        else:
+                            print obj
+                            pass
+                            
     
                 
                 else:
                     slave_rect = None
                     while not queue.empty():
                         obj = queue.get()
-                        slave_rect = obj.rect
+#                         slave_rect = obj.rect
                         
-                    if slave_rect is not None and self.mestate.master_rect is not None:
-                        slave_rect.left = self.mestate.master_rect.left
-                        slave_rect.right = self.mestate.master_rect.right
-                        self.mestate.send_queues[idx].put(Camera_Control(slave_rect))
+#                     if slave_rect is not None and self.mestate.master_rect is not None:
+#                         slave_rect.left = self.mestate.master_rect.left
+#                         slave_rect.right = self.mestate.master_rect.right
+#                         self.mestate.send_queues[idx].put(Camera_Control(slave_rect))
                         
             time.sleep(0.1)
             
@@ -661,9 +676,10 @@ if __name__ == "__main__":
         print("Usage: MAVHawkview FILE")
         sys.exit(1)
     
+    #ser = cesium_io_server.start_server()
         
     hawk = Hawkview(args.files)
-    
+    print 'hawk'
     # run main loop as a thread
     hawk.mestate.thread = threading.Thread(target=hawk.main_loop, name='main_loop')
     hawk.mestate.thread.daemon = True

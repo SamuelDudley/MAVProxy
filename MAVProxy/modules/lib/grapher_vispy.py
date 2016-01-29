@@ -51,6 +51,12 @@ colourmap = {
 class Camera_State(object):
     def __init__(self, rect):
         self.rect = rect
+        
+class Cursor_Location(object):
+    # holds the current location of the cursor
+    def __init__(self, loc):
+        self.loc = loc
+
 
 class MavGraphVispy(object):
     def __init__(self, recv_queue, send_queue):
@@ -357,7 +363,7 @@ class MavGraphVispy(object):
     def on_draw(self, event):
         master_rect = None
         rect = self.get_cam().get_state()['rect']
-        self.send_queue.put(Camera_State(rect))
+        #self.send_queue.put(Camera_State(rect))
         while not self.recv_queue.empty():
             obj = self.recv_queue.get()
             master_rect = obj.rect
@@ -431,7 +437,8 @@ class MavGraphVispy(object):
             
             x = self.selected.x[i]
             y = self.selected.y[i]
-            
+            self.send_queue.put(Cursor_Location( (x, y) )) # send the current cursor location to the master process via the IPC
+
             # update cursor
             if self.lables:
                 self.cursor_text.text = "%s: x=%0.2f, y=%0.2f" % (self.selected.label,x, y)
