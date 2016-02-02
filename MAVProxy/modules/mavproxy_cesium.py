@@ -8,11 +8,22 @@ import time, math
 from math import *
 import socket
 
+import json
+import eventlet
+from flask_socketio import SocketIO
+import redis
+import threading
+
 from MAVProxy.modules.lib import mp_module
 from MAVProxy.modules.mavproxy_map import mp_slipmap
 from MAVProxy.modules.lib import mp_settings
 from MAVProxy.modules.lib.mp_menu import *  # popup menus
 from pymavlink import mavutil
+
+class FlaskIO():
+    def __init__(self):
+        self.thread = threading
+        pass
 
 class CesiumModule(mp_module.MPModule):
 
@@ -59,24 +70,28 @@ class CesiumModule(mp_module.MPModule):
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         if m.get_type() == 'GLOBAL_POSITION_INT':
-            
+             
             msg_dict = m.to_dict()
             self.aircraft['lat']= msg_dict['lat']
             self.aircraft['lon'] = msg_dict['lon']
             self.aircraft['alt_wgs84'] = msg_dict['alt']
-            
+             
             if None not in self.aircraft.values():
-                pass
-            
+                eventlet.monkey_patch()
+                socketio = SocketIO(message_queue='redis://')
+                socketio.emit('aircraft_data', json.dumps(self.aircraft), namespace='/test')
+             
         if m.get_type() == 'ATTITUDE':
-
+ 
             msg_dict = m.to_dict()
             self.aircraft['roll']= msg_dict['roll']
             self.aircraft['pitch'] = msg_dict['pitch']
             self.aircraft['yaw'] = msg_dict['yaw']
-            
+             
             if None not in self.aircraft.values():
-                pass
+                eventlet.monkey_patch()
+                socketio = SocketIO(message_queue='redis://')
+                socketio.emit('aircraft_data', json.dumps(self.aircraft), namespace='/test')
                 
     def idle_task(self):
         '''called on idle'''
