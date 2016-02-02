@@ -19,17 +19,9 @@ class CesiumModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CesiumModule, self).__init__(mpstate, "cesium", "Cesium viewer module")
         self.add_command('cesium', self.cmd_cesium, [""])
-        self.connected = False
         
-        while not self.connected:
-            try:
-                self.cesium_connection = mavutil.mavtcp("127.0.0.1:14555")
-                self.connected = True
-            except:
-                time.sleep(0.1)
-                
-        
-        self.cesium_link= mavutil.mavlink.MAVLink(self.cesium_connection)
+        self.aircraft = {'lat':None, 'lon':None, 'alt_wgs84':None,
+                         'roll':None, 'pitch':None, 'yaw':None}
         
 
     def cmd_cesium(self, args):
@@ -54,24 +46,38 @@ class CesiumModule(mp_module.MPModule):
         '''load and draw the fence in cesium'''
         self.fence_points_to_send = self.mpstate.public_modules['fence'].fenceloader.points
         for point in self.fence_points_to_send:
-            self.cesium_connection.write(point.get_msgbuf())
+            #fence[fields['idx']] = {"lat":fields['lat'], "lon":fields['lng']}
+            pass
             
     def send_mission(self):
         '''load and draw the mission in cesium'''
         self.mission_points_to_send = self.mpstate.public_modules['wp'].wploader.wpoints
         for point in self.mission_points_to_send:
-            self.cesium_connection.write(point.get_msgbuf())
+            pass
     
    
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
         if m.get_type() == 'GLOBAL_POSITION_INT':
-            self.cesium_connection.write(m.get_msgbuf())
-        if m.get_type() == 'ATTITUDE':
-            self.cesium_connection.write(m.get_msgbuf())
             
-        
-   
+            msg_dict = m.to_dict()
+            self.aircraft['lat']= msg_dict['lat']
+            self.aircraft['lon'] = msg_dict['lon']
+            self.aircraft['alt_wgs84'] = msg_dict['alt']
+            
+            if None not in self.aircraft.values():
+                pass
+            
+        if m.get_type() == 'ATTITUDE':
+
+            msg_dict = m.to_dict()
+            self.aircraft['roll']= msg_dict['roll']
+            self.aircraft['pitch'] = msg_dict['pitch']
+            self.aircraft['yaw'] = msg_dict['yaw']
+            
+            if None not in self.aircraft.values():
+                pass
+                
     def idle_task(self):
         '''called on idle'''
         pass
