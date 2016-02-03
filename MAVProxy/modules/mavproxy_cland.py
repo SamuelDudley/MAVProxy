@@ -19,6 +19,7 @@ class Estimator(object):
 
     def __init__(self, id, state):
         self.id = id
+        self.error_display = None
         self.state = state
         self.extra = {}
         self.vehicle_colour = 'blue'  
@@ -65,7 +66,9 @@ class CLANDModule(mp_module.MPModule):
                                                       ("pos_error_lim", int, 1000),  # pos error limit [meters]
                                                       ("mode", int, 0),  # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
                                                       ("cland_duration_sec", int, 1000),  # Maximum duration to remain in C-LAND submode [seconds]
-                                                      ("line", bool, True)]) # show the line that links the est pos to the true pos
+                                                      ("show_error_circle", bool, True),  # Show error circle
+                                                      ("error_circle_multi", float, 1.0),  # multiplier for error circle
+                                                      ("show_line", bool, True)]) # show the line that links the est pos to the true pos
         
         self.add_command('cland', self.cmd_cland, ["cland control",
                                                  "<status>",
@@ -204,6 +207,14 @@ class CLANDModule(mp_module.MPModule):
                                                                     icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
                                                                     trail=mp_slipmap.SlipTrail(colour=(0, 255, 255))))
                     
+                    self.estimators[id].error_display = mp_slipmap.SlipCircle(id+"error_circle", 3,
+                                                      (m.lat * 1e-7, m.lon * 1e-7),
+                                                      self.cland_settings.error_circle_multi*m.hacc,
+                                                      (0, 255, 255), linewidth=2)
+                    # show the error display?
+                    self.estimators[id].error_display.set_hidden(not self.cland_settings.show_error_circle)
+                    self.mpstate.map.add_object(self.estimators[id].error_display)
+                    
             else:  # the estimator is in the dict
                 # update the dict entry
                 self.estimators[id].update_state(m.to_dict())
@@ -236,9 +247,20 @@ class CLANDModule(mp_module.MPModule):
                 if m.hacc <= 500: # TODO what value makes sense here... ask AFRL
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='green', row=self.row_2)
+                    if self.mpstate.map:  # if the map is loaded...
+                        self.estimators[id].error_display = mp_slipmap.SlipCircle(id+"error_circle", 3,
+                                                      (m.lat * 1e-7, m.lon * 1e-7),
+                                                      self.cland_settings.error_circle_multi*m.hacc,
+                                                      (0, 255, 255), linewidth=2)
+                    
                 else:
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='red', row=self.row_2)
+                    if self.mpstate.map:  # if the map is loaded...
+                        self.estimators[id].error_display = mp_slipmap.SlipCircle(id+"error_circle", 3,
+                                                      (m.lat * 1e-7, m.lon * 1e-7),
+                                                      self.cland_settings.error_circle_multi*m.hacc,
+                                                      (255, 0, 0), linewidth=2)
                 
                 if m.filter_status <= 128: # TODO what value makes sense here... ask AFRL
                     self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
@@ -253,6 +275,10 @@ class CLANDModule(mp_module.MPModule):
                 else:
                     self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
                                                  fg='red', row=self.row_2)
+                
+                # show the error display?
+                self.estimators[id].error_display.set_hidden(not self.cland_settings.show_error_circle)
+                self.mpstate.map.add_object(self.estimators[id].error_display)
                    
         if m.get_type() == 'EST_EXTRA_TELE':
             # note this msg might not even get sent...
@@ -300,7 +326,7 @@ class CLANDModule(mp_module.MPModule):
                 
                 p = [(self.estimators[id].state['lat']* 1e-7, self.estimators[id].state['lon']* 1e-7), (m.lat* 1e-7, m.lon* 1e-7)]
                 self.estimators[id].map_line = mp_slipmap.SlipPolygon(id+'line', p, layer=3,linewidth=1, colour=(0, 255, 255))
-                self.estimators[id].map_line.set_hidden(not self.cland_settings.line) # show the line?
+                self.estimators[id].map_line.set_hidden(not self.cland_settings.show_line) # show the line?
                 if self.mpstate.map:  # if the map is loaded...
                     self.mpstate.map.add_object(self.estimators[id].map_line)
         
