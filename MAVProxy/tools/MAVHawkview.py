@@ -177,6 +177,14 @@ class Hawkview(object):
         self.mestate.console.write("Loading %s...\n" % files[0])
         
         self.mestate.file = args.files[0]
+        
+        file_type = self.mestate.file.split('.')
+        if len(file_type) == 1:
+            # the file is a folder...
+            # try to load the existing info...
+            # could use os folder / dir here...
+            pass
+        
         t0 = time.time()
         mlog = mavutil.mavlink_connection(args.files[0], notimestamps=False,
                                           zero_time_base=False)
@@ -185,26 +193,12 @@ class Hawkview(object):
 
         t1 = time.time()
         self.mestate.console.write("\nDone! (%u messages in %.1fs)\n" % (self.mestate.mlog._count, t1-t0))
-        #load_np_arrays()
-        # t0 = time.time()
-        # count_msg_types(progress_bar)
-        # t1 = time.time()
-        # mestate.console.write("\ndone (%u messages in %.1fs)\n" % (mestate.mlog._count, t1-t0))
 
         self.load_graphs()
         self.setup_menus()
     
-#     def input_loop():
-#         '''wait for user input'''
-#         while mestate.exit != True:
-#             try:
-#                 if mestate.exit != True:
-#                     line = raw_input(mestate.rl.prompt)
-#             except EOFError:
-#                 mestate.exit = True
-#                 sys.exit(1)
-#             mestate.input_queue.put(line)
-
+    def cmd_save(self):
+    
     def cmd_json(self, args):
         import json
         mestate = self.mestate
@@ -252,70 +246,6 @@ class Hawkview(object):
         fid.close()
             
         print("Done ATT!")
-        
-    def cmd_playback(self, args):
-        mestate = self.mestate
-        
-        self.connected = False
-        
-        while not self.connected:
-            try:
-                self.cesium_connection = mavutil.mavtcp("127.0.0.1:14555")
-                
-                self.connected = True
-            except:
-                time.sleep(0.1)
-                
-        
-        self.cesium_link= mavutil.mavlink.MAVLink(self.cesium_connection)
-        print self.cesium_connection.WIRE_PROTOCOL_VERSION
-        
-        # we have made a connection to the cesium node js server.
-        # start sending the log data...
-        time.sleep(1)
-        
-        m = self.cesium_link.heartbeat_encode(type= 1, autopilot = 1, base_mode = 1, custom_mode = 1, system_status = 1)
-        self.cesium_link.send(m)
-        
-        self.load_np_arrays(['ATT', 'POS'])
-        print("sending POS")
-        length = len(mestate.arrays['POS'].data)
-        count = 0
-        
-        for msg in mestate.arrays['POS'].data:
-            print msg
-            # we are itterating over rows of data.
-            m = self.cesium_link.global_position_int_encode(#time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg):
-                    #msg['TimeUS'], msg['Lat'], msg['Lng'], msg['Alt'], 0, 0, 0, 0, 0)
-                    0,0,0,0,0,0,0,0,0)
-            print m
-            self.cesium_link.send(m)
-
-            count += 1
-            print 'pos ', count, ' of ', length
-            
-        
-        time.sleep(1)
-        print("sending ATT")
-        length = len(mestate.arrays['ATT'].data)
-        count = 0
-        for msg in mestate.arrays['ATT'].data:
-            # we are itterating over rows of data.
-            self.cesium_link.attitude_send(#time_boot_ms, roll, pitch, yaw, rollspeed, pitchspeed, yawspeed):
-                    msg['TimeMS'], msg['Roll'], msg['Pitch'], msg['Yaw'], 0, 0, 0)
-            count += 1
-            print 'att ', count, ' of ', length
-            
-        time.sleep(1)
-        print("sending TIME")
-        #lastly we need to send the max log time...
-        max_time = max(max(mestate.arrays['POS'].TimeMS), max(mestate.arrays['ATT'].TimeMS))
-        self.cesium_link.timesync_send(#tc1, ts1):
-                                   max_time,0)
-         
-        print("Done!")                               
-        
-        
 
     def cmd_set(self, args):
         '''control MAVExporer options'''
@@ -679,7 +609,6 @@ if __name__ == "__main__":
     #ser = cesium_io_server.start_server()
         
     hawk = Hawkview(args.files)
-    print 'hawk'
     # run main loop as a thread
     hawk.mestate.thread = threading.Thread(target=hawk.main_loop, name='main_loop')
     hawk.mestate.thread.daemon = True

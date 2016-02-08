@@ -30,7 +30,7 @@ class Estimator(object):
         self.distance = 0
         self.bearing = 0
         self.is_active = True
-        self.experimental_timer = None
+        
 
 
     def update_state(self, state):
@@ -51,6 +51,7 @@ class CLANDModule(mp_module.MPModule):
         super(CLANDModule, self).__init__(mpstate, "cland", "C-LAND trials support")
         self.estimators = {}
         self.experimental_mode= {0:"none",1:"cland1",2:"cland2",3:"cland3",4:"systemid",5:"ofdrift"} # as per mavlink msg defn.
+        self.experimental_timer = None
         self.auto_submode = self.experimental_mode[0] # set the initial submode to 'none'
         self.row_1 = 4 #the first row of cland console text. this needs to be the first non-populated row
         
@@ -58,6 +59,8 @@ class CLANDModule(mp_module.MPModule):
         self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_1)
         self.row_2 = self.row_1 + 1
         self.mpstate.console.set_status('submode', 'NONE', fg='grey', row=self.row_2)
+        self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
+                                                 fg='grey', row=self.row_2)
         self.row_3 = self.row_2 + 1
         self.mpstate.console.set_status('cland', '', fg='grey', row=self.row_3)
         self.row_4 = self.row_3 + 1
@@ -333,61 +336,66 @@ class CLANDModule(mp_module.MPModule):
         
         if m.get_type() == 'AUTO_SUBMODE':
             '''tell the operator what the submode is via a prompt change and console update'''
-            if self.master.flightmode == 'AUTO': #make sure we are in AUTO
-                submodes = [key for key in m.to_dict().keys() if (key not in ['mavpackettype', 'experimental_timer'] and m.to_dict()[key] > 0)]
-                # ^ gets all the non-zero submodes from the msg and puts them into a list
+#             if self.master.flightmode == 'AUTO': #make sure we are in AUTO
+            submodes = [key for key in m.to_dict().keys() if (key not in ['mavpackettype', 'experimental_timer'] and m.to_dict()[key] > 0)]
+            # ^ gets all the non-zero submodes from the msg and puts them into a list
+            
+            if len(submodes) == 0:
+                # we are not in a submode
+                self.auto_submode = "NONE"
                 
-                if len(submodes) == 0:
-                    # we are not in a submode
-                    self.auto_submode = "NONE"
+                self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='grey')
+                self.mpstate.rl.set_prompt('%s>' % self.master.flightmode) #set the prompt to default
+                
+                self.experimental_timer = None
+                self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
+                                             fg='grey', row=self.row_2)
+                
+                
+            elif len(submodes) == 1:
+                # we are in a submode
+                self.auto_submode = submodes[0] #grab the submode name from the first (and only) list entry
+                if self.auto_submode == 'experimental_mode': # check to see if its an experimental mode
+                    # if so get the experimental mode name from its value (see mavlink msg defn for notes)
+                    experimental_value = m.to_dict()[self.auto_submode]
+                    # re-define the auto_submode from the experimental_value
+                    self.auto_submode = self.experimental_mode[experimental_value]
                     
-                    self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='grey')
-                    self.mpstate.rl.set_prompt('%s>' % self.master.flightmode) #set the prompt to default
+                    # get the experimental timer
+                    self.experimental_timer = m.to_dict()['experimental_timer']
+                    
+                    # add the timer to the console
+                    self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
+                                             fg='green', row=self.row_2)
+                    
+                    if self.auto_submode in ['cland1', 'cland2', 'cland3']: # heck to see if we are in a cland mode
+                        # if so make the console submode text green
+                        self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
+                else:
+                    # we are in a submode, but not a cland mode... e.g. TAKEOFF, LAND, etc...
+                    # make the console submode text blue
+                    self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
                     
                     self.experimental_timer = None
                     self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
-                                                 fg='grey', row=self.row_2)
-                    
-                    
-                elif len(submodes) == 1:
-                    # we are in a submode
-                    self.auto_submode = submodes[0] #grab the submode name from the first (and only) list entry
-                    if self.auto_submode == 'experimental_mode': # check to see if its an experimental mode
-                        # if so get the experimental mode name from its value (see mavlink msg defn for notes)
-                        experimental_value = m.to_dict()[self.auto_submode]
-                        # re-define the auto_submode from the experimental_value
-                        self.auto_submode = self.experimental_mode[experimental_value]
-                        
-                        # get the experimental timer
-                        self.experimental_timer = m.to_dict()['experimental_timer']
-                        
-                        # add the timer to the console
-                        self.mpstate.console.set_status('experimental_timer', 'Sec: %u' % (int(self.experimental_timer)),
-                                                 fg='green', row=self.row_2)
-                        
-                        if self.auto_submode in ['cland1', 'cland2', 'cland3']: # heck to see if we are in a cland mode
-                            # if so make the console submode text green
-                            self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
-                    else:
-                        # we are in a submode, but not a cland mode... e.g. TAKEOFF, LAND, etc...
-                        # make the console submode text blue
-                        self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
-                        
-                        self.experimental_timer = None
-                        self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
-                                                 fg='grey', row=self.row_2)
-                    
-                    # change the prompt to include the submode which has been defined in the logic above  
-                    self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper()))
-                    
-                else:
-                    # we are in more than one submode... this is bad
-                    self.auto_submode = 'error'
-                    # make the console submode text red and display 'ERROR'
-                    self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='red')
-                    
-                    # change the prompt to include the submode which has been defined in the logic above  
-                    self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper())) 
+                                             fg='grey', row=self.row_2)
+                
+                # change the prompt to include the submode which has been defined in the logic above  
+                self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper()))
+                
+            else:
+                # we are in more than one submode... this is bad
+                self.auto_submode = 'error'
+                # make the console submode text red and display 'ERROR'
+                self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='red')
+                
+                # change the prompt to include the submode which has been defined in the logic above  
+                self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper()))
+            
+#             else:
+#                 # we are not in auto...
+#                 pass
+                
         
         if m.get_type() == "NAV_CONTROLLER_OUTPUT":
             '''show the est trajectory while in cland mode'''
@@ -464,7 +472,7 @@ class CLANDModule(mp_module.MPModule):
         
         
     def fence_return(self):
-        '''return the fence points which when crossed will cause the vehicle to enter RTL'''
+        '''return the fence points which when crossed will cause the vehicle to enter RTL / Guided'''
         points = [
                   (-30.910362, 136.556900),
                   (-30.897497, 136.524445),
