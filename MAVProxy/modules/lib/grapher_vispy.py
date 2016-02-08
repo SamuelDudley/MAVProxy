@@ -196,44 +196,6 @@ class MavGraphVispy(object):
             caps = set(re.findall(re_caps, f))
             self.msg_types = self.msg_types.union(caps)
             self.field_types.append(caps)
-        
-#             self.y.append([])
-#             self.x.append([])
-#             self.axes.append(1)
-#             self.first_only.append(False)
-# 
-#         if self.labels is not None:
-#             labels = self.labels.split(',')
-#             if len(labels) != len(fields)*len(self.mav_list):
-#                 print("Number of labels (%u) must match number of fields (%u)" % (
-#                     len(labels), len(fields)*len(self.mav_list)))
-#                 return
-#         else:
-#             labels = None
-#             
-#         timeshift = self.timeshift
-# 
-#         for fi in range(0, len(self.mav_list)):
-#             mlog = self.mav_list[fi]
-#             self.process_mav(mlog, timeshift)
-#             timeshift = 0
-#             for i in range(0, len(self.x)):
-#                 if self.first_only[i] and fi != 0:
-#                     self.x[i] = []
-#                     self.y[i] = []
-#             if labels:
-#                 lab = labels[fi*len(self.fields):(fi+1)*len(self.fields)]
-#             else:
-#                 lab = self.fields[:]
-#             if self.multi:
-#                 col = colors[:]
-#             else:
-#                 col = colors[fi*len(self.fields):]
-#             self.plotit(self.x, self.y, lab, colors=col)
-#             for i in range(0, len(self.x)):
-#                 self.x[i] = []
-#                 self.y[i] = []
-#         pylab.draw()
 
     
     def set_data(self, vars):

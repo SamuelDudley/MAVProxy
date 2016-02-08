@@ -239,29 +239,44 @@ class LinkModule(mp_module.MPModule):
             self.say("height %u" % rounded_alt, priority='notification')
 
 
-    def master_callback(self, m, master):
+    def master_callback(self, m, master, test = False):
         '''process mavlink message m on master, sending any messages to recipients'''
-
+        if test == True:
+            print 'link a'
         # see if it is handled by a specialised sysid connection
         sysid = m.get_srcSystem()
+        if test == True:
+            print 'link b', sysid
         if sysid in self.mpstate.sysid_outputs:
             self.mpstate.sysid_outputs[sysid].write(m.get_msgbuf())
             return
-
+        if test == True:
+            print 'link c', getattr(m, '_timestamp', None)
         if getattr(m, '_timestamp', None) is None:
             master.post_message(m)
+            if test == True:
+                print 'link d'
         self.status.counters['MasterIn'][master.linknum] += 1
 
         mtype = m.get_type()
+        if test == True:
+            print 'link e', mtype, self.mpstate.logqueue
+            print dataPackets, master.linknum, self.get_usec(), m.get_msgbuf()
 
         # and log them
         if mtype not in dataPackets and self.mpstate.logqueue:
+            
             # put link number in bottom 2 bits, so we can analyse packet
             # delay in saved logs
             usec = self.get_usec()
             usec = (usec & ~3) | master.linknum
+            if test == True:
+                print 'link f'
             self.mpstate.logqueue.put(str(struct.pack('>Q', usec) + m.get_msgbuf()))
-
+        
+        if test == True:
+            print 'link g'
+        
         # keep the last message of each type around
         self.status.msgs[m.get_type()] = m
         if not m.get_type() in self.status.msg_count:
@@ -411,6 +426,7 @@ class LinkModule(mp_module.MPModule):
             # pass messages along to listeners, except for REQUEST_DATA_STREAM, which
             # would lead a conflict in stream rate setting between mavproxy and the other
             # GCS
+            
             if self.mpstate.settings.mavfwd_rate or mtype != 'REQUEST_DATA_STREAM':
                 if not mtype in self.no_fwd_types:
                     for r in self.mpstate.mav_outputs:

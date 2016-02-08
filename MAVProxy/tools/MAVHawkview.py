@@ -138,23 +138,6 @@ class MEData(object):
 
 
 
-#will replace this with the cesium plugin
-# def map_process(args):
-#     '''process for a graph'''
-#     from mavflightview import mavflightview_mav, mavflightview_options
-#     mestate.mlog.reduce_by_flightmodes(mestate.flightmode_selections)
-#     
-#     options = mavflightview_options()
-#     options.condition = mestate.settings.condition
-#     if len(args) > 0:
-#         options.types = ','.join(args)
-#     mavflightview_mav(mestate.mlog, options)
-# 
-# def cmd_map(args):
-#     '''map command'''
-#     child = multiprocessing.Process(target=map_process, args=[args])
-#     child.start()
-
 class Hawkview(object):
     def __init__(self, files):
         
@@ -164,9 +147,9 @@ class Hawkview(object):
         'reload'     : (self.cmd_reload,    'reload graphs'),
         'condition'  : (self.cmd_condition, 'set graph conditions'),
         'param'      : (self.cmd_param,     'show parameters'),
-        'play'       : (self.cmd_playback,  'playback log'),
+        'save'       : (self.cmd_save,      'save log'),
         'json'       : (self.cmd_json,      'write json files'),
-#         'map'        : (cmd_map,       'show map view'),
+        'load'       : (self.cmd_load,      'laod log'),
         }
         
         self.mestate = MEState()
@@ -197,7 +180,23 @@ class Hawkview(object):
         self.load_graphs()
         self.setup_menus()
     
-    def cmd_save(self):
+    def cmd_save(self, args):
+        import pickle
+        with open('pickle.test', 'wb') as fid:
+            # pickle any of the mlog values needed to re generate the current log from file
+            pickle.dump({'params':self.mestate.mlog.params, 'message_field_count':self.mestate.mlog.message_field_count,
+                        'message_count':self.mestate.mlog.message_count, 'dtypes':self.mestate.mlog.dtypes,
+                        'msg_mults':self.mestate.mlog.msg_mults, 'struct_fmts':self.mestate.mlog.struct_fmts,
+                        'flightmodes':self.mestate.mlog._flightmodes}, fid)
+            fid.flush()
+        fid.close()
+    
+    def cmd_load(self, args):
+        import pickle
+        with open('pickle.test', 'rb') as fid:
+            inst = pickle.load(fid)
+        fid.close()
+        print inst
     
     def cmd_json(self, args):
         import json
@@ -246,7 +245,11 @@ class Hawkview(object):
         fid.close()
             
         print("Done ATT!")
-
+        
+        del temp
+        del data
+        del entry
+        
     def cmd_set(self, args):
         '''control MAVExporer options'''
         mestate = self.mestate
