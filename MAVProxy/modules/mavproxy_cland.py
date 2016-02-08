@@ -30,6 +30,7 @@ class Estimator(object):
         self.distance = 0
         self.bearing = 0
         self.is_active = True
+        self.experimental_timer = None
 
 
     def update_state(self, state):
@@ -333,14 +334,20 @@ class CLANDModule(mp_module.MPModule):
         if m.get_type() == 'AUTO_SUBMODE':
             '''tell the operator what the submode is via a prompt change and console update'''
             if self.master.flightmode == 'AUTO': #make sure we are in AUTO
-                submodes = [key for key in m.to_dict().keys() if (key != 'mavpackettype' and m.to_dict()[key] > 0)]
+                submodes = [key for key in m.to_dict().keys() if (key not in ['mavpackettype', 'experimental_timer'] and m.to_dict()[key] > 0)]
                 # ^ gets all the non-zero submodes from the msg and puts them into a list
                 
                 if len(submodes) == 0:
                     # we are not in a submode
                     self.auto_submode = "NONE"
+                    
                     self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='grey')
                     self.mpstate.rl.set_prompt('%s>' % self.master.flightmode) #set the prompt to default
+                    
+                    self.experimental_timer = None
+                    self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
+                                                 fg='grey', row=self.row_2)
+                    
                     
                 elif len(submodes) == 1:
                     # we are in a submode
@@ -351,6 +358,13 @@ class CLANDModule(mp_module.MPModule):
                         # re-define the auto_submode from the experimental_value
                         self.auto_submode = self.experimental_mode[experimental_value]
                         
+                        # get the experimental timer
+                        self.experimental_timer = m.to_dict()['experimental_timer']
+                        
+                        # add the timer to the console
+                        self.mpstate.console.set_status('experimental_timer', 'Sec: %u' % (int(self.experimental_timer)),
+                                                 fg='green', row=self.row_2)
+                        
                         if self.auto_submode in ['cland1', 'cland2', 'cland3']: # heck to see if we are in a cland mode
                             # if so make the console submode text green
                             self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
@@ -358,6 +372,10 @@ class CLANDModule(mp_module.MPModule):
                         # we are in a submode, but not a cland mode... e.g. TAKEOFF, LAND, etc...
                         # make the console submode text blue
                         self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
+                        
+                        self.experimental_timer = None
+                        self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
+                                                 fg='grey', row=self.row_2)
                     
                     # change the prompt to include the submode which has been defined in the logic above  
                     self.mpstate.rl.set_prompt('%s [%s]>' % (self.master.flightmode, self.auto_submode.upper()))
