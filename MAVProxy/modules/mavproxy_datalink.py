@@ -60,27 +60,32 @@ class MicrohardStatus(object):
         
     def get_snmp_value(self, ip, target):
         from pysnmp.entity.rfc3413.oneliner import cmdgen
-        
-        
-        errorIndication, errorStatus, errorIndex, varBinds = self.cmdGen.getCmd(
-            cmdgen.CommunityData('public'),
-            cmdgen.UdpTransportTarget((ip,161),timeout=1,retries=0),
-            target)
-
-        # Check for errors and print out results
-        
-        if errorStatus:
-            print('%s at %s' % (
-                errorStatus.prettyPrint(),
-                errorIndex and varBinds[int(errorIndex)-1][0] or '?'
+        try:
+            errorIndication, errorStatus, errorIndex, varBinds = self.cmdGen.getCmd(
+                cmdgen.CommunityData('public'),
+                cmdgen.UdpTransportTarget((ip,161),timeout=1,retries=0),
+                target)
+    
+            # Check for errors and print out results
+            
+            if errorStatus:
+                print('%s at %s' % (
+                    errorStatus.prettyPrint(),
+                    errorIndex and varBinds[int(errorIndex)-1][0] or '?'
+                    )
                 )
-            )
-            output = -1
-            return output
-        else:
-            for name, val in varBinds:
-                output = val.prettyPrint()
+                output = -1
                 return output
+            else:
+                for name, val in varBinds:
+                    output = val.prettyPrint()
+                    return output
+        except:
+            '''there was a error'''
+            time.sleep(0.2)
+            output = '-2'
+            return output
+        
     
     def get_usec(self):
         '''time since 1970 in microseconds'''
@@ -113,7 +118,8 @@ class MicrohardStatus(object):
                 self.status['rx_bytes'] = float(self.status['rx_bytes'].split()[0])
 
             self.queue.put_nowait(self.status)
-        time.sleep(0.1)
+            
+            time.sleep(0.1)
                 
 class Datalink(object):
     '''a generic datalink object'''
@@ -156,7 +162,7 @@ class DatalinkModule(mp_module.MPModule):
         
     def cmd_datalink(self, args):
         '''datalink command parser'''
-        usage = "usage: datalink <set>"
+        usage = "usage: datalink <status> <set> (DATALINKSETTING)"
         if len(args) == 0:
             print(usage)
             return
@@ -174,6 +180,8 @@ class DatalinkModule(mp_module.MPModule):
             print(usage)
             
     def update_query_hz(self):
+        if self.datalink_settings.query_hz <= 0:
+            self.datalink_settings.query_hz = 0.01
         self.query_timer = mavutil.periodic_event(self.datalink_settings.query_hz)
         
     

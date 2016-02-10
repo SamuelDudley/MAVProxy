@@ -587,6 +587,7 @@ class Hawkview(object):
         
         fields = args[0:-2]
         fields_to_load = set([x.split('.')[0] for x in fields])
+        print fields_to_load
         #check to see if we have already loaded the fields...
         fields_to_load = [x for x in fields_to_load if (x in mestate.mlog.dtypes.keys() and x not in mestate.arrays.keys())]
         if len(fields_to_load) == 0:

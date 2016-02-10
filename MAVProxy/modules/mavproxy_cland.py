@@ -50,7 +50,7 @@ class CLANDModule(mp_module.MPModule):
     def __init__(self, mpstate):
         super(CLANDModule, self).__init__(mpstate, "cland", "C-LAND trials support")
         
-        self.master_cland_link = 'tcp:127.0.0.1:5760' # change me to reflect mytty
+        self.master_cland_link = '/dev/uhard' # tcp:127.0.0.1:5760' # '/dev/uhard'
         
         
         self.estimators = {}
@@ -186,29 +186,33 @@ class CLANDModule(mp_module.MPModule):
 
     def load_fence(self):
         '''load and draw the CLAND fences'''
+        # set some params to make sure the aircraft is using a fence and the correct
+        # action will be taken when / if the fence is crossed
         self.param_set('FENCE_AUTOENABLE', 1,3)
         self.param_set('FENCE_ACTION', 0,3)
         self.param_set('FENCE_TOTAL', 0, 3) # clear the fence from the AP
-        #clear the fence points (if any loaded)
+        
+        # clear the fence points (if any loaded)
         self.mpstate.public_modules['fence'].points = []
         self.mpstate.public_modules['fence'].fenceloader.clear()
         for (lat, lon) in self.fence_return():
             #add the cland fence
             self.mpstate.public_modules['fence'].fenceloader.add_latlon(lat, lon)
             
-        #send the fence to the ap
+        # send the fence to the ap
         self.mpstate.public_modules['fence'].send_fence()
-        #save the fence and draw it on the map
+        # save the fence and draw it on the map
         self.mpstate.public_modules['fence'].list_fence('cland_fence.txt')
-        #draw the second fence (not used by AP logic but enforced by IDP)
+        # draw the second fence (not used by AP logic but enforced by IDP)
         self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
         self.param_set('FENCE_ACTION', 1,3)
         
     def set_master(self):
-        self.mpstate.public_modules['link'].link_add(self.master_cland_link)
+        '''add a master link to a slave terminal in the case of a master terminal crash'''
+        self.mpstate.public_modules['link'].link_add(self.master_cland_link) # add a master link
         
-        self.mpstate.public_modules['link'].cmd_link_list()
-        self.mpstate.public_modules['output'].cmd_output_list()
+        self.mpstate.public_modules['link'].cmd_link_list() # show the current links
+        self.mpstate.public_modules['output'].cmd_output_list() # show the current outputs
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -435,17 +439,16 @@ class CLANDModule(mp_module.MPModule):
                     self.mpstate.map.hide_object(id+'trajectory')
                 
         if m.get_type() == 'DATALINK_STATUS':
+            '''show the datalink rssi in the console'''
             self.datalink_rssi = m.to_dict()['rssi']
-            if self.datalink_rssi < -80 or self.datalink_rssi == -1: # -1 is the error fn.
+            error_values = [-1, -2] # -1 & -2 are error values.
+            if self.datalink_rssi < -80 or self.datalink_rssi in error_values:
                 self.mpstate.console.set_status('rssi', 'RSSI: %u' % (int(self.datalink_rssi)),
                                              fg='red', row=1)
             else:
                 self.mpstate.console.set_status('rssi', 'RSSI: %u' % (int(self.datalink_rssi)),
                                              fg='green', row=1)
             
-    def idle_task(self):
-        '''called on idle'''
-        pass
 
 
     '''the remainder of the code is helper functions'''
