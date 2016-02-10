@@ -21,7 +21,8 @@ class mavmemlog(mavutil.mavfile):
         last_timestamp = None
         last_pct = 0
         
-        self.ignore = ['FMT', 'PARM', 'MSG']
+        self.ignore = ['FMT', 'PARM', 'MSG',
+                       'TERRAIN_DATA', 'STATUSTEXT', 'PARAM_VALUE']
         self.write_flag = False
         self.fds = {}
         self.dtypes = {}
@@ -66,31 +67,38 @@ class mavmemlog(mavutil.mavfile):
                 self.write_flag = True
                 
 #             print type
+
+            
             if type not in self.message_count.keys() and self.write_flag:
                 # if this is the first of the msg type
                 self.message_count[type] = 0
                 
-                struct_fmt = m.fmt.msg_struct # a string used to discribe how to pack the vars
+                #struct_fmt = m.fmt.msg_struct # a string used to discribe how to pack the vars of a BIN file
+                struct_fmt = m.format
                 struct_fmt+='d'
                 self.struct_fmts[type] = struct_fmt
                 
-                struct_columns = m.fmt.columns # the names of the cols
+                #struct_columns = m.fmt.columns # the names of the cols of a BIN
+                struct_columns = m.ordered_fieldnames
                 struct_columns.append('timestamp')
 #                 struct_fmt = '<'+'d'*len(struct_columns)
-                msg_mults = m.fmt.msg_mults # mults to apply later
+                #msg_mults = m.fmt.msg_mults # mults to apply later of a BIN
+                msg_mults = [None]*len(m.ordered_fieldnames)
                 msg_mults.append(None) #for the timestamp
                 self.msg_mults[type]= {key:value for key, value in zip(struct_columns,msg_mults)}
                 
                 self.fds[type] = open('/tmp/mav/'+type+'.np', 'ab')
                 
                 msg_dtype = np.dtype(zip(struct_columns,[struct_fmt[0]+x for x in struct_fmt[1:]]))
+                print msg_dtype
                 self.dtypes[type] = msg_dtype
                 # get the field names and make colums
                 self.message_field_count[type] = struct_columns
                         
             if self.write_flag:
                 self.message_count[type] += 1
-                struct_elements = m._elements # the raw values
+                #struct_elements = m._elements # the raw values of a BIN
+                struct_elements = [m.to_dict()[x] for x in m.ordered_fieldnames if x != 'timestamp']
                 struct_elements.append(m._timestamp)
                 self.fds[type].write(struct.pack(self.struct_fmts[type], *struct_elements))
 #             now we know how many of each msg we have and the fields that they contain...
