@@ -49,6 +49,10 @@ class CLANDModule(mp_module.MPModule):
 
     def __init__(self, mpstate):
         super(CLANDModule, self).__init__(mpstate, "cland", "C-LAND trials support")
+        
+        self.master_cland_link = 'tcp:127.0.0.1:5760' # change me to reflect mytty
+        
+        
         self.estimators = {}
         self.experimental_mode= {0:"none",1:"cland1",2:"cland2",3:"cland3",4:"systemid",5:"ofdrift"} # as per mavlink msg defn.
         self.experimental_timer = None
@@ -88,7 +92,7 @@ class CLANDModule(mp_module.MPModule):
 
     def cmd_cland(self, args):
         '''cland command parser'''
-        usage = "usage: cland <start|stop|reset|status|fence> <set> (CLANDSETTING)"
+        usage = "usage: cland <start|stop|reset|status|fence|master> <set> (CLANDSETTING)"
         
         if len(args) == 0:
             print(usage)
@@ -118,6 +122,9 @@ class CLANDModule(mp_module.MPModule):
             
         elif args[0] == "fence":
             self.load_fence()
+            
+        elif args[0] == "master":
+            self.set_master()
             
         else:
             print(usage)
@@ -196,6 +203,12 @@ class CLANDModule(mp_module.MPModule):
         #draw the second fence (not used by AP logic but enforced by IDP)
         self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
         self.param_set('FENCE_ACTION', 1,3)
+        
+    def set_master(self):
+        self.mpstate.public_modules['link'].link_add(self.master_cland_link)
+        
+        self.mpstate.public_modules['link'].cmd_link_list()
+        self.mpstate.public_modules['output'].cmd_output_list()
 
     def mavlink_packet(self, m):
         '''handle an incoming mavlink packet'''
@@ -421,7 +434,15 @@ class CLANDModule(mp_module.MPModule):
                     # hide the est trajectory
                     self.mpstate.map.hide_object(id+'trajectory')
                 
-                
+        if m.get_type() == 'DATALINK_STATUS':
+            self.datalink_rssi = m.to_dict()['rssi']
+            if self.datalink_rssi < -80 or self.datalink_rssi == -1: # -1 is the error fn.
+                self.mpstate.console.set_status('rssi', 'RSSI: %u' % (int(self.datalink_rssi)),
+                                             fg='red', row=1)
+            else:
+                self.mpstate.console.set_status('rssi', 'RSSI: %u' % (int(self.datalink_rssi)),
+                                             fg='green', row=1)
+            
     def idle_task(self):
         '''called on idle'''
         pass

@@ -18,7 +18,7 @@ import pysnmp
 
 
 class MicrohardStatus(object):
-    def __init__(self, queue, ip):
+    def __init__(self, ip, queue):
         
         self.queue = queue
         self.ip = ip
@@ -79,7 +79,7 @@ class MicrohardStatus(object):
             return output
         else:
             for name, val in varBinds:
-                output = float(val.prettyPrint())
+                output = val.prettyPrint()
                 return output
     
     def get_usec(self):
@@ -97,16 +97,23 @@ class MicrohardStatus(object):
             self.status['rssi'] = self.get_snmp_value(self.ip, self.rssi)
             if self.status['rssi'] == None:
                 self.status['rssi'] = -1
+            else:
+                self.status['rssi'] = float(self.status['rssi'])
                 
             self.status['tx_bytes'] = self.get_snmp_value(self.ip, self.tx_bytes)
             if self.status['tx_bytes'] == None:
                 self.status['tx_bytes'] = -1
+            else:
+                self.status['tx_bytes'] = float(self.status['tx_bytes'].split()[0])
                 
             self.status['rx_bytes'] = self.get_snmp_value(self.ip, self.rx_bytes)
             if self.status['rx_bytes'] == None:
                 self.status['rx_bytes'] = -1
-            
-            self.queue.put_nowait(status)
+            else:
+                self.status['rx_bytes'] = float(self.status['rx_bytes'].split()[0])
+
+            self.queue.put_nowait(self.status)
+        time.sleep(0.1)
                 
 class Datalink(object):
     '''a generic datalink object'''
@@ -114,7 +121,8 @@ class Datalink(object):
     def __init__(self, ip):
         self.queue = Queue.Queue()
         self.ip = ip
-        self.state = {}
+        self.datalink = MicrohardStatus(self.ip, self.queue)
+        self.status = self.datalink.status
         # state holds a dict of the values useful to this datalink...
         # RSSI, voltage, temp, etc...
 
@@ -138,7 +146,7 @@ class DatalinkModule(mp_module.MPModule):
         self.datalinks = {}
         
         
-        self.datalinks['microhard1320T'] = Datalink(ip ='100.100.100.82')
+        self.datalinks['microhard1320T'] = Datalink(ip ='192.168.1.253')
         
         
         #this connection talks back to the master of the mavproxy instance
@@ -168,9 +176,6 @@ class DatalinkModule(mp_module.MPModule):
     def update_query_hz(self):
         self.query_timer = mavutil.periodic_event(self.datalink_settings.query_hz)
         
-    def mavlink_packet(self, m):
-        '''handle an incoming mavlink packet'''
-        pass
     
     def idle_task(self):
         '''called on idle'''
@@ -179,8 +184,8 @@ class DatalinkModule(mp_module.MPModule):
                 #print datalink_id, self.datalinks[datalink_id].ip
                 while not self.datalinks[datalink_id].queue.empty():
                     status = self.datalinks[datalink_id].queue.get_nowait()
-                    print status
-                    self.mavproxy_link.d100byte_summary_send(0,0,0,0,0,0,0,0,0)
+#                     print status
+                    self.mavproxy_link.datalink_status_send(status['rssi'],status['tx_bytes'],status['rx_bytes'],status['gcs_time'])
 
 def init(mpstate):
     '''initialise module'''
