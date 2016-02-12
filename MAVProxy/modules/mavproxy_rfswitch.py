@@ -47,7 +47,12 @@ class RFSwitchStatus(object):
         while self.is_alive():
             while not self.queue.empty():
                 try:
-                    with serial.Serial(self.dev, 19200, timeout=3) as ser:
+                    with serial.Serial(self.dev, 1200, timeout=3,
+                                  dsrdtr=False, rtscts=False, xonxoff=False) as ser:
+                        # we rather strangely set the baudrate initially to 1200, then change to the desired
+                        # baudrate. This works around a kernel bug on some Linux kernels where the baudrate
+                        # is not set correctly
+                        ser.setBaudRate(19200)
                         status = self.queue.get_nowait()
                         ser.write(status['rf_output'])
                         resp = ser.readline()

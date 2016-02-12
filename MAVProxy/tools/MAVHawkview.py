@@ -14,7 +14,7 @@ from math import *
 from MAVProxy.modules.lib import rline
 from MAVProxy.modules.lib import wxconsole
 from MAVProxy.modules.lib import grapher
-from MAVProxy.modules.lib import mavmemlog
+# from MAVProxy.modules.lib import mavmemlog
 from MAVProxy.modules.lib import mavmemlog_np
 from pymavlink.mavextra import *
 from MAVProxy.modules.lib.mp_menu import *
@@ -153,6 +153,7 @@ class Hawkview(object):
         }
         
         self.mestate = MEState()
+        self.debug = False
         
         self.mestate.rl = rline.rline("MAV> ", self.mestate)
 
@@ -179,6 +180,9 @@ class Hawkview(object):
 
         self.load_graphs()
         self.setup_menus()
+        
+        # make a regular expression to extract the words containing capital letters (msg types)
+        self.re_caps = re.compile('[A-Z_][A-Z0-9_]+')
     
     def cmd_save(self, args):
         import pickle
@@ -541,11 +545,9 @@ class Hawkview(object):
             fmt = '<'+'d'*len(self.mestate.mlog.message_field_count[msg_type])
             fmt_list = [fmt[0]+x for x in fmt[1:]]
             double_type = np.dtype(zip(self.mestate.mlog.message_field_count[msg_type],fmt_list))
-    #         print double_type
             self.mestate.set_data(msg_type, self.mestate.get_array(msg_type).astype(dtype=double_type, casting='safe', subok=False, copy=False))
             
-            
-            #we have built the array.... now apply the atts.
+            #we have built the float64 array.... now apply the atts.
             
             for col_name in self.mestate.mlog.message_field_count[msg_type]:
                 setattr(self.mestate.arrays[msg_type], col_name, self.mestate.get_array(msg_type)[:][col_name])
@@ -558,8 +560,8 @@ class Hawkview(object):
                 
             setattr(self.mestate.arrays[msg_type], 'min_timestamp', np.min(self.mestate.arrays[msg_type].timestamp))
             setattr(self.mestate.arrays[msg_type], 'max_timestamp', np.max(self.mestate.arrays[msg_type].timestamp))
-                
-    #         print mestate.arrays[msg_type].data
+            
+            # report the final size of the array to the console
             print msg_type, (self.mestate.arrays[msg_type].data.nbytes)*10**-6, 'MiB'
     
     def cmd_graph(self, args):
@@ -585,9 +587,19 @@ class Hawkview(object):
         args.append(recv_queue)
         
         
-        fields = args[0:-2]
+        msg_types = set() # an empty set
+        
+        fields = args[0:-2] # extract the fields from the args sent to this fn
+        if self.debug:
+            print 'cmd_graph fields input: ',fields
         fields_to_load = set([x.split('.')[0] for x in fields])
-        print fields_to_load
+        
+        for f in fields_to_load:
+            caps = set(re.findall(self.re_caps, f))
+            msg_types = msg_types.union(caps)
+        fields_to_load = list(msg_types) # convert the finished set into a list
+        if self.debug:
+            print 'cmd_graph fields to load: ',fields_to_load 
         #check to see if we have already loaded the fields...
         fields_to_load = [x for x in fields_to_load if (x in mestate.mlog.dtypes.keys() and x not in mestate.arrays.keys())]
         if len(fields_to_load) == 0:
@@ -609,8 +621,6 @@ if __name__ == "__main__":
     if len(args.files) == 0:
         print("Usage: MAVHawkview FILE")
         sys.exit(1)
-    
-    #ser = cesium_io_server.start_server()
         
     hawk = Hawkview(args.files)
     # run main loop as a thread

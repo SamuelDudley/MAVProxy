@@ -222,7 +222,8 @@ class MavGraphVispy(object):
             if msg_type_min is not None:
                 if x_min is None or msg_type_min < x_min:
                     x_min = msg_type_min
-        
+
+
         for i in range(0, len(self.fields)):
             msg_types = set()
             f = self.fields[i]
@@ -237,7 +238,6 @@ class MavGraphVispy(object):
            
             
             v = evaluate_expression(f, vars)
-
             
             if self.xaxis is None:
                 for msg_type in msg_types:
@@ -315,7 +315,8 @@ class MavGraphVispy(object):
         self.cursor_text = vp.Text("", pos=(0, 0), anchor_x='left', anchor_y='center',
                               font_size=8, parent=self.plt.view.scene)
         self.cursor_line = vp.Line(parent=self.plt.view.scene)
-        self.cursor_symbol = vp.Markers(pos=np.array([[0, 0]]), parent=self.plt.view.scene)
+        self.cursor_symbol = vp.Markers(pos=np.array([[0, 0]]), parent=self.plt.view.scene, symbol='+',
+                                   face_color='black', edge_color=None, size=8.)
         self.cursor_line.visible = False
         self.cursor_symbol.visible = False
         self.cursor_line.order = 10
@@ -334,7 +335,7 @@ class MavGraphVispy(object):
                 self.set_cam(obj.rect)
         if self.cursor_line.visible and self.cursor_pos_x is not None:
             self.cursor_line.set_data(np.array([[self.cursor_pos_x, rect.bottom], [self.cursor_pos_x, rect.top]]))
-        self.plt.update()
+        #self.plt.update()
         
     def on_mouse_press(self, event):
         if not event.handled and event.button == 1:
@@ -347,10 +348,12 @@ class MavGraphVispy(object):
                     break
             if self.selected is not None:
                 self.selected.set_data(width=1.5)
-                self.update_cursor(event.pos)
+            
+            self.update_cursor(event.pos)
                 
         if not event.handled and event.button == 3:
             self.set_cam(self.cam_home)
+            self.update_cursor(event.pos)
             
     
     def on_mouse_wheel(self, event):
@@ -399,34 +402,35 @@ class MavGraphVispy(object):
             
             x = self.selected.x[i]
             y = self.selected.y[i]
-            self.send_queue.put(Cursor_Location( (x, y) )) # send the current cursor location to the master process via the IPC
-
-            # update cursor
-            if self.lables:
-                self.cursor_text.text = "%s: x=%0.2f, y=%0.2f" % (self.selected.label,x, y)
+            if self.cursor_pos_y != y or self.cursor_pos_x != x:
+                self.cursor_pos_x = x
+                self.cursor_pos_y = y
+                self.send_queue.put(Cursor_Location( (self.cursor_pos_x, self.cursor_pos_y) )) # send the current cursor location to the master process via the IPC
+    
+                # update cursor
+                if self.lables:
+                    self.cursor_text.text = "%s: x=%0.2f, y=%0.2f" % (self.selected.label,x, y)
+                    
+                else:
+                    self.cursor_text.text =  "x=%0.2f, y=%0.2f" % (x, y)
+                value_offset = np.diff(tr.map([[0, 0], [10, 0]]), axis=0)
+          
+                self.cursor_text.pos = x + value_offset[0, 0], y + value_offset[0, 1]
                 
-            else:
-                self.cursor_text.text =  "x=%0.2f, y=%0.2f" % (x, y)
-            value_offset = np.diff(tr.map([[0, 0], [10, 0]]), axis=0)
-      
-            self.cursor_text.pos = x + value_offset[0, 0], y + value_offset[0, 1]
+                stats_offset_upper = np.diff(tr.map([[0, 0], [10, 10]]), axis=0)
+                self.stats_text_upper.pos = x + stats_offset_upper[0, 0], y + stats_offset_upper[0, 1]
+                
+                stats_offset_lower= np.diff(tr.map([[0, 0], [10, 20]]), axis=0)
+                self.stats_text_lower.pos = x + stats_offset_lower[0, 0], y + stats_offset_lower[0, 1]
+                
+                rect = self.plt.view.camera.rect
+                self.cursor_symbol.set_data(pos=np.array([[x, y]]))
+                self.update_stats()
+            if False in [self.cursor_text, self.cursor_line.visible, self.cursor_symbol.visible]:
+                self.cursor_text.visible = True
+                self.cursor_line.visible = True
+                self.cursor_symbol.visible = True
             
-            stats_offset_upper = np.diff(tr.map([[0, 0], [10, 10]]), axis=0)
-            self.stats_text_upper.pos = x + stats_offset_upper[0, 0], y + stats_offset_upper[0, 1]
-            
-            stats_offset_lower= np.diff(tr.map([[0, 0], [10, 20]]), axis=0)
-            self.stats_text_lower.pos = x + stats_offset_lower[0, 0], y + stats_offset_lower[0, 1]
-            
-            rect = self.plt.view.camera.rect
-#             self.cursor_line.set_data(np.array([[x, rect.bottom], [x, rect.top]])) # this is handled in the on_draw() fn
-            self.cursor_symbol.set_data(pos=np.array([[x, y]]), symbol='+',
-                                   face_color='black', edge_color=None, size=8.)
-            self.cursor_pos_x = x
-            self.cursor_pos_y = y
-            self.cursor_text.visible = True
-            self.cursor_line.visible = True
-            self.cursor_symbol.visible = True
-            self.update_stats()
     
     def update_stats(self):
             if self.stats:
