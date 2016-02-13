@@ -88,7 +88,8 @@ class CLANDModule(mp_module.MPModule):
         mpstate.public_modules['map'].map_settings.showgps2pos = 0 # Hide the second GPS pos from the map
         # the canbus GPS reports the wrong (fixed) heading and can cause confusion.
         # GPS2 status is still displayed in the console for health check purposes.
-        
+        mpstate.map.add_object(mp_slipmap.SlipBrightness(0.7)) # this makes the drawn icons / lines much easier to see...
+        mpstate.map.add_object(mp_slipmap.SlipCenter((-30.931436, 136.544790))) # load the map at WTR...
 
     def cmd_cland(self, args):
         '''cland command parser'''
