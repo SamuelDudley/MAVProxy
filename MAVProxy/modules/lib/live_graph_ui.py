@@ -68,6 +68,11 @@ class GraphFrame(wx.Frame):
             max_y = min_y = 0
         else:
             max_y = min_y = self.data[0][0]
+        
+        if self.state.ylims:
+            min_y = self.state.ylims[0]
+            max_y = self.state.ylims[1]
+        
         for i in range(len(self.data)):
             p = self.axes.plot(
                 self.data[i],
@@ -76,7 +81,7 @@ class GraphFrame(wx.Frame):
                 label=self.state.fields[i],
                 )[0]
             self.plot_data.append(p)
-            if len(self.data[i]) != 0:
+            if len(self.data[i]) != 0 and not self.state.ylims:
                 min_y = min(min_y, min(self.data[i]))
                 max_y = max(max_y, max(self.data[i]))
 
@@ -108,6 +113,11 @@ class GraphFrame(wx.Frame):
         if ymin == ymax:
             ymax = ymin + 0.1
             ymin = ymin - 0.1
+        
+        if self.state.ylims:
+            ymin = self.state.ylims[0]
+            ymax = self.state.ylims[1]
+            
         self.axes.set_ybound(lower=ymin, upper=ymax)
         self.axes.grid(True, color='gray')
         pylab.setp(self.axes.get_xticklabels(), visible=True)

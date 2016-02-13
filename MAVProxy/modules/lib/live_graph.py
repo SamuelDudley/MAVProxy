@@ -24,7 +24,8 @@ class LiveGraph():
                  timespan=20.0,
                  tickresolution=0.2,
                  colors=[ 'red', 'green', 'blue', 'orange', 'olive', 'cyan', 'magenta', 'brown', 'dark green',
-                          'violet', 'purple', 'grey', 'black']):
+                          'violet', 'purple', 'grey', 'black'],
+                 ylims = False):
         import multiprocessing
         self.fields = fields
         self.colors = colors
@@ -32,6 +33,7 @@ class LiveGraph():
         self.timespan = timespan
         self.tickresolution = tickresolution
         self.values = [None]*len(self.fields)
+        self.ylims = ylims
 
         self.parent_pipe,self.child_pipe = multiprocessing.Pipe()
         self.close_graph = multiprocessing.Event()

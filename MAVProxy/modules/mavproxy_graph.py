@@ -16,6 +16,7 @@ class GraphModule(mp_module.MPModule):
         super(GraphModule, self).__init__(mpstate, "graph", "graph control")
         self.timespan = 20
         self.tickresolution = 0.2
+        self.ylims = False
         self.graphs = []
         self.add_command('graph', self.cmd_graph, "[expression...] add a live graph",
                          ['(VARIABLE) (VARIABLE) (VARIABLE) (VARIABLE) (VARIABLE) (VARIABLE)'])
@@ -29,7 +30,7 @@ class GraphModule(mp_module.MPModule):
             return
 
         elif args[0] == "help":
-            print("graph <timespan|tickresolution|expression>")
+            print("graph <timespan|tickresolution|ylimits|expression>")
         elif args[0] == "timespan":
             if len(args) == 1:
                 print("timespan: %.1f" % self.timespan)
@@ -40,6 +41,31 @@ class GraphModule(mp_module.MPModule):
                 print("tickresolution: %.1f" % self.tickresolution)
                 return
             self.tickresolution = float(args[1])
+            
+        elif args[0] == "ylimits":
+            if len(args) == 1:
+                if not self.ylims:
+                    print("ylimits: %s" % str(self.ylims))
+                else:
+                     print("ylimits: (y min = %.1f, y max = %.1f)" % (self.ylims[0], self.ylims[1]))
+            
+            if len(args) == 2:
+                try:
+                    if bool(args[1]) == False:
+                        self.ylims = False
+                    else:
+                        print('"False" or "y_min y_max"')
+                except:
+                    print('"False" or "y_min y_max"')
+                    
+            if len(args) == 3:
+                try:
+                    min = float(args[1])
+                    max = float(args[2])
+                    
+                    self.ylims = (min,max)
+                except:
+                    print('"False" or "y_min y_max"')
         else:
             # start a new graph
             self.graphs.append(Graph(self, args[:]))
@@ -87,7 +113,8 @@ class Graph():
         self.livegraph = live_graph.LiveGraph(self.fields,
                                               timespan=state.timespan,
                                               tickresolution=state.tickresolution,
-                                              title=self.fields[0])
+                                              title=self.fields[0],
+                                              ylims=state.ylims)
 
     def is_alive(self):
         '''check if this graph is still alive'''
