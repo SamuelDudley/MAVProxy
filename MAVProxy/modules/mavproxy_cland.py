@@ -386,11 +386,15 @@ class CLANDModule(mp_module.MPModule):
                     self.mpstate.console.set_status('experimental_timer', 'Sec: %s' % (str(self.experimental_timer).upper()),
                                              fg='green', row=self.row_2)
                     
-                    if self.auto_submode in ['cland1', 'cland2', 'cland3']: # heck to see if we are in a cland mode
+                    if self.auto_submode in ['cland1', 'cland2', 'cland3']: # check to see if we are in a cland mode
                         # if so make the console submode text green
                         self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='green')
+                    
+                    else:
+                        # we are not in a cland mode but we are in an experimental mode... e.g. SYSTEMID, OFDRIFT, etc...
+                        self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
                 else:
-                    # we are in a submode, but not a cland mode... e.g. TAKEOFF, LAND, etc...
+                    # we are in a submode, but not a experimental mode... e.g. TAKEOFF, LAND, etc...
                     # make the console submode text blue
                     self.console.set_status('submode', '%s' % (self.auto_submode.upper()), fg='blue')
                     
