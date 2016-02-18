@@ -156,12 +156,12 @@ class CLANDModule(mp_module.MPModule):
         self.master.mav.command_long_send(
             self.settings.target_system,  # target_system
             0, # target_component
-            mavutil.mavlink.MAV_CMD_DO_START_CLAND, # command
-            0, # confirmation
-            self.cland_settings.pos_error_lim, # Max EST error (m)
-            self.cland_settings.est_tele_time_lim, # EST_TELE timeout limit (seconds)
-            self.cland_settings.mode, # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
-            self.cland_settings.cland_duration_sec, # Maximum duration to remain in C-LAND submode (seconds)
+            mavutil.mavlink.MAV_CMD_DO_DST_EXP_START, # command
+            0, 
+            1, # CLAND1 = mode 1
+            0,
+            0,
+            0,
             0, # empty
             0, # empty
             0) # empty
@@ -174,7 +174,7 @@ class CLANDModule(mp_module.MPModule):
         self.master.mav.command_long_send(
             self.settings.target_system,  # target_system
             0, # target_component
-            mavutil.mavlink.MAV_CMD_DO_STOP_CLAND, # command
+            mavutil.mavlink.MAV_CMD_DO_DST_EXP_STOP, # command
             0, # confirmation
             0, # param1
             0, # param2
