@@ -4,7 +4,7 @@ log analysis program
 hacked from mavexplorer by Andrew Tridgell to open and view (much) larger logs
 Samuel Dudley September 2015
 '''
-import memory_profiler
+# import memory_profiler
 import sys, struct, time, os, datetime
 import math, re
 import Queue
@@ -51,6 +51,7 @@ class MEState(object):
         self.rl = None
         self.console = wxconsole.MessageConsole(title='MAVHawkview')
         self.exit = False
+        self.websocket_enabled = None
 
         
         
@@ -442,12 +443,14 @@ class Hawkview(object):
                             
                         elif isinstance(obj, Cursor_Location): # handle cursor location from the graph
                             (x,y)= obj.loc
-                            import eventlet
-                            from flask_socketio import SocketIO
-                            import redis
-                            eventlet.monkey_patch()
-                            socketio = SocketIO(message_queue='redis://')
-                            socketio.emit('log_time_control', {'log_time': x}, namespace='/test')
+                            try:
+                                import eventlet
+                                from flask_socketio import SocketIO
+                                import redis
+                                eventlet.monkey_patch()
+                                socketio = SocketIO(message_queue='redis://')
+                                socketio.emit('log_time_control', {'log_time': x}, namespace='/test')
+                                self.mestate.websocket_enabled = True
                         
                         else:
                             print obj
