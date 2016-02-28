@@ -212,9 +212,22 @@ class CLANDModule(mp_module.MPModule):
         self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
         self.param_set('FENCE_ACTION', 1,3)
     
-    def load_notam(self):
-        self.mpstate.map.add_object(mp_slipmap.SlipPolygon('notam_222B', self.R222B(), layer=3, linewidth=2, colour=(0, 0, 255)))
-        self.mpstate.map.add_object(mp_slipmap.SlipPolygon('notam_222C', self.R222C(), layer=3, linewidth=2, colour=(0, 0, 255)))
+    def load_notam(self, all = True):
+        try:
+            from MAVProxy.modules import notam
+            if all:
+                notam_dict = notam.WTR()
+                for airspace in notam_dict.keys():
+                    self.mpstate.map.add_object(mp_slipmap.SlipPolygon(airspace, notam_dict[airspace], layer=3, linewidth=2, colour=(0, 0, 255)))
+                
+                self.mpstate.map.add_object(mp_slipmap.SlipPolygon('airspace', self.fence_huge(), layer=3, linewidth=2, colour=(128, 128, 255)))
+                    
+            else:
+                self.mpstate.map.add_object(mp_slipmap.SlipPolygon('notam_222B', notam.R222B(), layer=3, linewidth=2, colour=(0, 0, 255)))
+                self.mpstate.map.add_object(mp_slipmap.SlipPolygon('notam_222C', notam.R222C(), layer=3, linewidth=2, colour=(0, 0, 255)))
+        except:
+            # could not load the notam(s)
+            pass
         
     def set_master(self):
         '''add a master link to a slave terminal in the case of a master terminal crash'''
@@ -527,44 +540,27 @@ class CLANDModule(mp_module.MPModule):
         
         return points
     
-    def R222B(self):
-        '''return the R222B NOTAM points'''
-        points =    [
-                    ( -30.855556  ,  136.0 ),
-                    ( -30.5  ,  136.0 ),
-                    ( -30.5  ,  136.5 ),
-                    ( -30.855556  ,  136.621389 ),
-                    ( -30.855556  ,  136.0 )
-                    ]
+    def fence_huge(self):
+        points = [
+                    (-30.930683, 136.621367),
+                    (-30.853237 ,136.607105 ),
+                    (-30.626309, 136.541874),
+                    (-30.420384, 136.679337),
+                    (-29.970729, 136.844298),
+                    (-29.299318, 136.587105),
+                    (-29.116724, 136.329131),
+                    (-29.127854, 135.340424),
+                    (-29.513965, 135.343153 ),
+                    (-29.797068, 136.396813 ),
+                    (-29.954242, 136.395077),
+                    (-30.319242, 136.580495),
+                    (-30.500935, 136.508475),
+                    (-30.505706, 136.380390 ),
+                    (-30.852734, 136.510357),
+                    (-30.898225, 136.509852),
+                    (-30.939240, 136.540242)
+                  ]
         return points
-    
-    def R222C(self):
-        '''return the R222C NOTAM points'''
-        points  =   [
-                    ( -31.133333  ,  136.0 ),
-                    ( -30.855556  ,  136.0 ),
-                    ( -30.855556  ,  136.621389 ),
-                    ( -31.145556  ,  136.622778 ),
-                    ( -31.15836  ,  136.623493 ),
-                    ( -31.17116  ,  136.625413 ),
-                    ( -31.18364  ,  136.628293 ),
-                    ( -31.19388  ,  136.631493 ),
-                    ( -31.20316  ,  136.635333 ),
-                    ( -31.21084  ,  136.639173 ),
-                    ( -31.21948  ,  136.643653 ),
-                    ( -31.22588  ,  136.647493 ),
-                    ( -31.23356  ,  136.652933 ),
-                    ( -31.23868  ,  136.656773 ),
-                    ( -31.24316  ,  136.660293 ),
-                    ( -31.25  ,  136.666667 ),
-                    ( -31.25  ,  136.283333 ),
-                    ( -31.184444  ,  136.250556 ),
-                    ( -31.1798  ,  136.233093 ),
-                    ( -31.18332  ,  136.205253 ),
-                    ( -31.133333  ,  136.0 )
-                    ]
-        return points
-
 def init(mpstate):
     '''initialise CLAND module'''
     return CLANDModule(mpstate)
