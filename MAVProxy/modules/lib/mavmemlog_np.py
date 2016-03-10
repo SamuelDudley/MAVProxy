@@ -4,7 +4,7 @@ from pymavlink import mavutil
 
 import numpy as np
 import struct
-import memory_profiler
+#import memory_profiler
 import os, shutil, sys
 
 

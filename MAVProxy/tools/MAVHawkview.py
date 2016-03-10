@@ -442,16 +442,16 @@ class Hawkview(object):
                             self.mestate.master_rect = obj.rect
                             
                         elif isinstance(obj, Cursor_Location): # handle cursor location from the graph
-                            (x,y)= obj.loc
-                            try:
-                                import eventlet
-                                from flask_socketio import SocketIO
-                                import redis
-                                eventlet.monkey_patch()
-                                socketio = SocketIO(message_queue='redis://')
-                                socketio.emit('log_time_control', {'log_time': x}, namespace='/test')
-                                self.mestate.websocket_enabled = True
-                        
+                            try:   
+                               (x,y)= obj.loc
+                               import eventlet
+                               from flask_socketio import SocketIO
+                               import redis
+                               eventlet.monkey_patch()
+                               socketio = SocketIO(message_queue='redis://')
+                               socketio.emit('log_time_control', {'log_time': x}, namespace='/test')
+                            except:
+                               pass
                         else:
                             print obj
                             pass
