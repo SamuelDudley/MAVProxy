@@ -51,13 +51,15 @@ class GraphModule(mp_module.MPModule):
             
             if len(args) == 2:
                 try:
-                    if bool(args[1]) == False:
+                    if str(args[1]).strip().upper() == 'FALSE':
+                        self.ylims = False
+                    elif int(args[1]) == 0:
                         self.ylims = False
                     else:
                         print('"False" or "y_min y_max"')
                 except:
                     print('"False" or "y_min y_max"')
-                    
+                
             if len(args) == 3:
                 try:
                     min = float(args[1])
