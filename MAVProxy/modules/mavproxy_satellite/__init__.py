@@ -19,7 +19,7 @@ import threading
 class SatelliteState(object):
     def __init__(self):
         self.base_mode = 1
-        self.targetIDPNumber = 2
+        self.targetIDPNumber = 2 #NOTE: this needs to be changed to reflect the number on the top of the IDP
         self.lat = 0
         self.lng = 0
         self.alt = 0
@@ -90,11 +90,23 @@ class SatelliteCommunicationModule(mp_module.MPModule):
         #print mtype
         
     def send_heartbeat(self):
-        self.mavproxy_link.heartbeat_send(1,3,89,self.state.base_mode,0)
+        self.mavproxy_link.heartbeat_send(1,3,self.state.base_mode,self.state.custom_mode,self.state.system_status)
 
     def send_position(self):
         #time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg
-        self.mavproxy_link.global_position_int_send(0, self.state.lat, self.state.lng,self.state.alt,0,0,0,0,0)
+        self.mavproxy_link.global_position_int_send(0, self.state.safe_lat, self.state.safe_lng,self.state.safe_alt,0,0,0,0,self.state.heading)
+        
+    def send_nav(self):
+        #nav_roll, nav_pitch, nav_bearing, target_bearing, wp_dist, alt_error, aspd_error, xtrack_error
+        self.mavproxy_link.nav_controller_output_send(0,0,0,self.state.target_bearing, self.state.wp_dist, 0,0,0)
+    
+    def send_power(self):
+        #Vcc, Vservo, flags
+        self.mavproxy_link.power_status_send(self.state.ps_vcc, self.state.ps_vservo, 0)
+    
+    def send_vfr_hud(self):
+        #airspeed, groundspeed, heading, throttle, alt, climb):
+        self.mavproxy_link.vfr_hud_send(self.state.airspeed, self.state.groundspeed, self.state.heading, 0, self.state.safe_alt, 0)
     
     def handle_mavproxy_msgs(self):
         now = time.time()
@@ -132,28 +144,69 @@ class SatelliteCommunicationModule(mp_module.MPModule):
             print msg_type, msg.to_dict()
             if msg_type == 'D100BYTE_SUMMARY':
                 #we make bits of 'standard' messages from the 100byte msg and send them to mavproxy
-                '''
-                mode                      : Mode manual / auto etc (uint8_t)
-                submode                   : Submode (uint8_t)
+                """
+                base_mode                 : System mode bitfield, see MAV_MODE_FLAG ENUM in mavlink/include/mavlink_types.h (uint8_t)
+                custom_mode               : Mode manual / auto etc (uint32_t)
+                expmode                   : Experimental mode (cland1/2/3/ etc.) (uint8_t)
                 wp                        : WP index (uint8_t)
-                safe_lat                  : lat (int32_t)
-                safe_lng                  : lng (int32_t)
-                safe_alt                  : Alt (int32_t)
-                '''
+                safe_lat                  : Safe lat *10^7 (degress) (int32_t)
+                safe_lng                  : Safe lng *10^7 (degress) (int32_t)
+                safe_alt                  : Safe alt *10^3 (meters) (int32_t)
+                nav_lat                   : Nav lat *10^7 (degress) (int32_t)
+                nav_lng                   : Nav lng *10^7 (degress) (int32_t)
+                nav_alt                   : Nav alt  *10^3 (meters) (int32_t)
+                ps_vcc                    : 5V rail voltage in millivolts (uint16_t)
+                ps_vservo                 : servo rail voltage in millivolts (uint16_t)
+                airspeed                  : Current airspeed in m/s (float)
+                groundspeed               : Current ground speed in m/s (float)
+                heading                   : Current heading in degrees, in compass units (0..360, 0=north) (int16_t)
+                system_status             : System status flag, see MAV_STATE ENUM (uint8_t)
+                target_bearing            : Bearing to current MISSION/target in degrees (int16_t)
+                wp_dist                   : Distance to active MISSION in meters (uint16_t)
+                """
                 msg_dict = msg.to_dict()
                 
                 #send a heartbeat with the newest mode...
                 try:
-                    self.state.base_mode = msg_dict['mode']
-                    self.state.lat = msg_dict['safe_lat']
-                    self.state.lng = msg_dict['safe_lng']
+                    self.state.base_mode = msg_dict['base_mode']
+                    self.state.custom_mode = msg_dict['custom_mode']
+                    self.state.system_status = msg_dict['system_status']
+                    self.state.safe_lat = msg_dict['safe_lat']
+                    self.state.safe_lng = msg_dict['safe_lng']
+                    self.state.safe_alt = msg_dict['safe_alt']
+                    self.state.heading = msg_dict['heading']
+                    
+                    self.state.target_bearing = msg_dict['target_bearing']
+                    self.state.wp_dist = msg_dict['wp_dist']
+                    
+                    self.state.ps_vcc = msg_dict['ps_vcc']
+                    self.state.ps_vservo = msg_dict['ps_vservo']
+                    
+                    self.state.airspeed = msg_dict['airspeed']
+                    self.state.groundspeed = msg_dict['groundspeed']
                 except:
                     print 'error updating mode from 100 byte msg'
-                self.send_heartbeat()
-                print self.state.base_mode
-            
-                self.send_position()
-                
+                try:
+                    self.send_heartbeat()
+                except:
+                    print 'error reporting heartbeat'
+                try:
+                    self.send_position()
+                except:
+                    print 'error reporting position'
+                try:
+                    self.send_nav()
+                except:
+                    print 'error reporting nav'
+                try:
+                    self.send_power()
+                except:
+                    print 'error reporting power'
+                try:
+                    self.send_vfr_hud()
+                except:
+                    print 'error reporting vfr hud'
+                    
             if msg_type == 'HEARTBEAT':
                 #the gateway is still alive
                 pass
@@ -233,9 +286,6 @@ class SatelliteCommunicationModule(mp_module.MPModule):
                     pass
                     #print 'error checking core thread status.. not attempting restart'
             
-            
-    
-       
     def idle_task(self):
         self.handle_mavproxy_msgs()
         self.handle_gateway_msgs()
