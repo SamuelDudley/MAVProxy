@@ -19,7 +19,7 @@ import threading
 class SatelliteState(object):
     def __init__(self):
         self.base_mode = 1
-        self.targetIDPNumber = 1
+        self.targetIDPNumber = 2
         self.lat = 0
         self.lng = 0
         self.alt = 0
@@ -90,7 +90,7 @@ class SatelliteCommunicationModule(mp_module.MPModule):
         #print mtype
         
     def send_heartbeat(self):
-        self.mavproxy_link.heartbeat_send(1,1,self.state.base_mode,0,4)
+        self.mavproxy_link.heartbeat_send(1,3,89,self.state.base_mode,0)
 
     def send_position(self):
         #time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg
@@ -150,6 +150,7 @@ class SatelliteCommunicationModule(mp_module.MPModule):
                 except:
                     print 'error updating mode from 100 byte msg'
                 self.send_heartbeat()
+                print self.state.base_mode
             
                 self.send_position()
                 
