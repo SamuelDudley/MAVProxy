@@ -47,6 +47,8 @@ class CheatModule(mp_module.MPModule):
                                          MPMenuItem('SPD15',  'SPD15', '# cheat speed 15'),
                                          MPMenuItem('SPD20',  'SPD20', '# cheat speed 20'),
                                          MPMenuItem('SPD25',  'SPD25', '# cheat speed 25'),
+                                         MPMenuItem('SPD30',  'SPD30', '# cheat speed 30'),
+                                         MPMenuItem('SPD35',  'SPD35', '# cheat speed 35'),
                                          MPMenuItem('--L1---',  '--L1----',  '# ' ),
                                          MPMenuItem('PERIOD UP',  'PERIOD UP', '# cheat tweak NAVL1_PERIOD 1.25'),
                                          MPMenuItem('PERIOD DN',  'PERIOD DN', '# cheat tweak NAVL1_PERIOD 0.8'),
@@ -63,15 +65,15 @@ class CheatModule(mp_module.MPModule):
                                          MPMenuItem('--WP---',  '--WP----',  '# ' ),
                                          MPMenuItem('WP1',  'WP1', '# cheat wp 1'),
                                          MPMenuItem('--GRAPH---',  '--GRAPH----',  '# ' ),
-                                         MPMenuItem('ATTITUDE',  'ATTITUDE', '# graph ATTITUDE.roll ; graph ATTITUDE.pitch'),
+                                         MPMenuItem('ATTITUDE',  'ATTITUDE', '# graph ylimits -40 40 ; graph degrees(ATTITUDE.roll) ; graph degrees(ATTITUDE.pitch) ; graph ylimits False'),
                                          MPMenuItem('NAV_ERR',  'NAV_ERR', '# graph NAV_CONTROLLER_OUTPUT.alt_error ; graph NAV_CONTROLLER_OUTPUT.aspd_error'),
                                          MPMenuItem('RNGDNR',  'RNGFNDR', '# graph RANGEFINDER.distance'), 
                                          MPMenuItem('SPEED',  'SPEED', '# graph VFR_HUD.airspeed ; graph GPS_RAW_INT.vel'),
                                          MPMenuItem('FLOW',  'FLOW', '# graph OPTICAL_FLOW.flow_x OPTICAL_FLOW.flow_y'), 
-                                         MPMenuItem('DBG',  'DBG', '# graph DEBUG_VECT.x DEBUG_VECT.y DEBUG_VECT.z'),
+                                         MPMenuItem('DBGV',  'DBGV',   '# graph DEBUG_VECT.x DEBUG_VECT.y DEBUG_VECT.z'),
+                                         MPMenuItem('POL',  'POL', '# graph POL_COMPASS.polCompass ; graph POL_COMPASS.heading POL_COMPASS.refheading'),
                                          MPMenuItem('--POL---',  '--POL----',  '# ' ),
                                          MPMenuItem('REVERSE',  'REVERSE', '# param set POL_REVERSE 1'),
-                                         MPMenuItem('REVERSE2',  'REVERSE2', '# param set POL_REVERSE 2'),
                                          MPMenuItem('--OFD---',  '--OFD----',  '# ' ),
                                          MPMenuItem('WEST',  'WEST', '# ofdrift heading 27000'),
                                          MPMenuItem('EAST',  'EAST', '# ofdrift heading 9000' ), 
@@ -86,15 +88,15 @@ class CheatModule(mp_module.MPModule):
                                          MPMenuItem('--LOAD---',  '--LOAD---',  '# ' ),
                                          MPMenuItem('Mission Editor',  'Mission Editor', '# module unload misseditor; module load misseditor'),
                                          MPMenuItem('submode',  'submode', '# module unload submode; module load mavproxy_submode'),
-                                         MPMenuItem('sysid',  'sysid', '# module unload sysid; module load mavproxy_sysid'),
-                                         MPMenuItem('Optical Flow Drift',  'Optical Flow Drift', '# module unload ofdrift; module load mavproxy_ofdrift'),
+                                         MPMenuItem('sysid',  'sysid', '# module unload sysid; module load sysid'),
+                                         MPMenuItem('Optical Flow Drift',  'Optical Flow Drift', '# module unload ofdrift; module load ofdrift'),
                                          MPMenuItem('Beacon',  'Beacon', '# module unload beacon; module load mavproxy_beacon'),
                                          MPMenuItem('Overlay',  'Overlay', '# module unload overlay; module load mavproxy_overlay'),
                                          MPMenuItem('Sequencer',  'Sequencer', '# module unload sequencer; module load mavproxy_sequencer'),
                                          MPMenuItem('Graph',  'Graph', '# module unload graph; module load graph'),
-                                         MPMenuItem('SunTrack',  'SunTrack', '# module unload suntrack; module load mavproxy_suntrack'),
+                                         MPMenuItem('SunTrack',  'SunTrack', '# module unload suntrack; module load suntrack'),
                                          MPMenuItem('--UPDATE---',  '--UPDATE--',  '# ' ),
-                                         MPMenuItem('CHEAT', 'CHEAT', '# module unload cheat; module load mavproxy_cheatsheet') ])
+                                         MPMenuItem('CHEAT', 'CHEAT', '# module unload cheat; module load cheatsheet') ])
 
  
         self.console.writeln( "Cheat Operations Loaded." )
@@ -125,7 +127,7 @@ class CheatModule(mp_module.MPModule):
               self.reset_throttle_underway = False
               print "CHEAT ESCRST Completed"
 
-        self.console.writeln( "seq %i", preflight_state )
+#        self.console.writeln( "seq %i", self.preflight_state )
         
         if self.sequence_preflight:
             self.run_preflight_seq()

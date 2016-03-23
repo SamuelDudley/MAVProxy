@@ -101,7 +101,7 @@ class SunTrackModule(mp_module.MPModule):
 
         cmd = "%sspa_command %.6f %.6f %.3f %i %i %i %i %i %i %.1f" % (self.path_spa, self.lat, self.lon, self.alt, self.year, self.month, self.day, self.hour, self.minute, self.second, self.timezone )
 
-        #print cmd
+#        print cmd
         result_str = self.run_command( cmd )
 #        print result_str
         azzen = result_str.split()
