@@ -40,7 +40,7 @@ class SunTrackModule(mp_module.MPModule):
         self.hour = 0
         self.minute = 0
         self.second = 0
-        self.path_spa = "./" #/opt/git/ardupilot/libraries/AP_Polarisation/sunpos/"
+        self.path_spa = os.path.join(os.getcwd(), 'modules', 'mavproxy_suntrack', 'spa_command')
         self.az = 0
         self.zen = 0
 
@@ -99,7 +99,7 @@ class SunTrackModule(mp_module.MPModule):
         self.second = dt.second
         self.timezone = self.suntrack_settings.suntrack_timezone
 
-        cmd = "%sspa_command %.6f %.6f %.3f %i %i %i %i %i %i %.1f" % (self.path_spa, self.lat, self.lon, self.alt, self.year, self.month, self.day, self.hour, self.minute, self.second, self.timezone )
+        cmd = "%s %.6f %.6f %.3f %i %i %i %i %i %i %.1f" % (self.path_spa, self.lat, self.lon, self.alt, self.year, self.month, self.day, self.hour, self.minute, self.second, self.timezone )
 
 #        print cmd
         result_str = self.run_command( cmd )
