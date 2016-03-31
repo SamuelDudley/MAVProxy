@@ -40,7 +40,7 @@ class SunTrackModule(mp_module.MPModule):
         self.hour = 0
         self.minute = 0
         self.second = 0
-        self.path_spa = "/opt/git/ardupilot/libraries/AP_Polarisation/sunpos/"
+        self.path_spa = "./" #/opt/git/ardupilot/libraries/AP_Polarisation/sunpos/"
         self.az = 0
         self.zen = 0
 
