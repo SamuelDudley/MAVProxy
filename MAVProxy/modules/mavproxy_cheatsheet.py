@@ -23,71 +23,70 @@ class CheatModule(mp_module.MPModule):
         self.preflight_state = 0
         self.menu_added_console = False
         self.menu_added_map = False
-        self.menu = MPMenuSubMenu('Cheat',
-                                  items=[MPMenuItem('--CMD----',  '--CMD----',  '# ' ),
-                                         MPMenuItem('AUTO', 'AUTO', '# mode auto'),
+        self.cmd_submenu=MPMenuSubMenu('CMD',items=[MPMenuItem('AUTO', 'AUTO', '# mode auto'),
                                          MPMenuItem('RTL', 'RTL', '# mode rtl'),
                                          MPMenuItem('FEN OFF', 'FEN OFF', '# fence disable'),
-                                         MPMenuItem('FEN ON', 'FEN ON', '# fence enable'),                                       
-                                         MPMenuItem('--SIM----',  '--SIM----',  '# ' ),
-                                         MPMenuItem('WINDSPD0', 'WINDSPD0', '# param set SIM_WIND_SPD 0'),
+                                         MPMenuItem('FEN ON', 'FEN ON', '# fence enable')])
+        
+        self.sim_submenu=MPMenuSubMenu('SIM',items=[MPMenuItem('WINDSPD0', 'WINDSPD0', '# param set SIM_WIND_SPD 0'),
                                          MPMenuItem('WINDSPD10', 'WINDSPD10', '# param set SIM_WIND_SPD 10'),
-                                         MPMenuItem('WINDSPD20', 'WINDSPD20', '# param set SIM_WIND_SPD 20'),
-                                         MPMenuItem('--TWEAK----',  '--TWEAK----',  '# ' ),
-                                         MPMenuItem('ROLL_P UP', 'ROLL_P UP', '# cheat tweak RLL2SRV_P 1.25'),
+                                         MPMenuItem('WINDSPD20', 'WINDSPD20', '# param set SIM_WIND_SPD 20')])
+        
+        self.tweak_submenu=MPMenuSubMenu('TWEAK',items=[MPMenuItem('ROLL_P UP', 'ROLL_P UP', '# cheat tweak RLL2SRV_P 1.25'),
                                          MPMenuItem('ROLL_P DN', 'ROLL_P DN', '# cheat tweak RLL2SRV_P 0.8'),
                                          MPMenuItem('PITCH_P UP', 'PITCH_P UP', '# cheat tweak PTCH2SRV_P 1.25'),
-                                         MPMenuItem('PITCH_P DN', 'PITCH_P DN', '# cheat tweak PTCH2SRV_P 0.8'),
-                                         MPMenuItem('--Thr---',  '--Thr----',  '# ' ),
-                                         MPMenuItem('ESCRST',  'ESCRST',  '# cheat escrst'),
+                                         MPMenuItem('PITCH_P DN', 'PITCH_P DN', '# cheat tweak PTCH2SRV_P 0.8')])
+        
+        self.thr_submenu=MPMenuSubMenu('Thr',items=[MPMenuItem('ESCRST',  'ESCRST',  '# cheat escrst'),
                                          MPMenuItem('ThrM100',  'Thr100',  '# cheat thr 100'),
-                                         MPMenuItem('Thr0',  'Thr0',  '# cheat thr 0'),
-                                         MPMenuItem('--SPD---',  '--SPD----',  '# ' ),
-                                         MPMenuItem('SPD10',  'SPD10', '# cheat speed 10'),
+                                         MPMenuItem('Thr0',  'Thr0',  '# cheat thr 0')])        
+        
+        self.spd_submenu=MPMenuSubMenu('SPD',items=[MPMenuItem('SPD10',  'SPD10', '# cheat speed 10'),
                                          MPMenuItem('SPD15',  'SPD15', '# cheat speed 15'),
                                          MPMenuItem('SPD20',  'SPD20', '# cheat speed 20'),
                                          MPMenuItem('SPD25',  'SPD25', '# cheat speed 25'),
                                          MPMenuItem('SPD30',  'SPD30', '# cheat speed 30'),
-                                         MPMenuItem('SPD35',  'SPD35', '# cheat speed 35'),
-                                         MPMenuItem('--L1---',  '--L1----',  '# ' ),
-                                         MPMenuItem('PERIOD UP',  'PERIOD UP', '# cheat tweak NAVL1_PERIOD 1.25'),
+                                         MPMenuItem('SPD35',  'SPD35', '# cheat speed 35')])   
+        
+        self.l1_submenu=MPMenuSubMenu('L1',items=[MPMenuItem('PERIOD UP',  'PERIOD UP', '# cheat tweak NAVL1_PERIOD 1.25'),
                                          MPMenuItem('PERIOD DN',  'PERIOD DN', '# cheat tweak NAVL1_PERIOD 0.8'),
                                          MPMenuItem('BRG_PERIOD UP',  'PERIOD UP', '# cheat tweak NAVL1_BRG_PERIOD 1.25'),
-                                         MPMenuItem('BRG_PERIOD DN',  'PERIOD DN', '# cheat tweak NAVL1_BRG_PERIOD 0.8'),
-                                         MPMenuItem('-WP_LOITER_RAD-',  '-WP_LOITER_RAD-',  '# ' ),
-                                         MPMenuItem('RADIUS 80',  'RADIUS 80', '# param set WP_LOITER_RAD 80' ),
+                                         MPMenuItem('BRG_PERIOD DN',  'PERIOD DN', '# cheat tweak NAVL1_BRG_PERIOD 0.8')]) 
+        
+        self.wp_loiter_rad_submenu=MPMenuSubMenu('WP_LOITER_RAD',items=[MPMenuItem('RADIUS 80',  'RADIUS 80', '# param set WP_LOITER_RAD 80' ),
                                          MPMenuItem('RADIUS 160',  'RADIUS 160', '# param set WP_LOITER_RAD 160' ),
-                                         MPMenuItem('RADIUS 320',  'RADIUS 320', '# param set WP_LOITER_RAD 320' ),
-#                                         MPMenuItem('--ALT---',  '--ALT----',  '# ' ),
-#                                         MPMenuItem('FORCEALT50',  'FORCEALT50', '# cheat alt 50'),
-#                                         MPMenuItem('FORCEALT100',  'FORCEALT100', '# cheat alt 100'),
-#                                         MPMenuItem('FORCEALT200',  'FORCEALT200', '# cheat alt 200'),
-                                         MPMenuItem('--WP---',  '--WP----',  '# ' ),
-                                         MPMenuItem('WP1',  'WP1', '# cheat wp 1'),
-                                         MPMenuItem('--GRAPH---',  '--GRAPH----',  '# ' ),
-                                         MPMenuItem('ATTITUDE',  'ATTITUDE', '# graph ylimits -40 40 ; graph degrees(ATTITUDE.roll) NAV_CONTROLLER_OUTPUT.nav_roll ; graph ylimits -30 30 ; graph degrees(ATTITUDE.pitch) NAV_CONTROLLER_OUTPUT.nav_pitch ; graph ylimits False'),
+                                         MPMenuItem('RADIUS 320',  'RADIUS 320', '# param set WP_LOITER_RAD 320' )]) 
+
+        self.wp_submenu=MPMenuSubMenu('WP',items=[MPMenuItem('WP1',  'WP1', '# cheat wp 1')]) 
+        
+        self.graph_submenu=MPMenuSubMenu('GRAPH',items=[MPMenuItem('ATTITUDE',  'ATTITUDE', '# graph ylimits -40 40 ; graph degrees(ATTITUDE.roll) NAV_CONTROLLER_OUTPUT.nav_roll ; graph ylimits -30 30 ; graph degrees(ATTITUDE.pitch) NAV_CONTROLLER_OUTPUT.nav_pitch ; graph ylimits False'),
                                          MPMenuItem('NAV_ERR',  'NAV_ERR', '# graph NAV_CONTROLLER_OUTPUT.alt_error ; graph NAV_CONTROLLER_OUTPUT.aspd_error'),
                                          MPMenuItem('RNGDNR',  'RNGFNDR', '# graph RANGEFINDER.distance'), 
                                          MPMenuItem('SPEED',  'SPEED', '# graph VFR_HUD.airspeed ; graph GPS_RAW_INT.vel'),
                                          MPMenuItem('ASPEED',  'ASPEED', '# graph ylimits 25 50 ; graph VFR_HUD.airspeed NAV_CONTROLLER_OUTPUT.aspd_error/100+VFR_HUD.airspeed ; graph ylimits False'),
                                          MPMenuItem('FLOW',  'FLOW', '# graph OPTICAL_FLOW.flow_x OPTICAL_FLOW.flow_y'), 
                                          MPMenuItem('DBGV',  'DBGV',   '# graph DEBUG_VECT.x DEBUG_VECT.y DEBUG_VECT.z'),
-                                         MPMenuItem('POL',  'POL', '# graph POL_COMPASS.polCompass ; graph POL_COMPASS.heading POL_COMPASS.refheading'),
-                                         MPMenuItem('--POL---',  '--POL----',  '# ' ),
-                                         MPMenuItem('REVERSE',  'REVERSE', '# param set POL_REVERSE 1'),
-                                         MPMenuItem('--OFD---',  '--OFD----',  '# ' ),
-                                         MPMenuItem('WEST',  'WEST', '# ofdrift heading 27000'),
-                                         MPMenuItem('EAST',  'EAST', '# ofdrift heading 9000' ), 
-                                         MPMenuItem('--SID---',  '--SID----',  '# ' ),
-                                         MPMenuItem('CHIRP',  'CHIRP', '# param set SI_TYPE 2 ; param set SI_TPULSE 0.3 ; param set SI_FGRAD 0.25'),
+                                         MPMenuItem('POL',  'POL', '# graph POL_COMPASS.polCompass ; graph POL_COMPASS.heading POL_COMPASS.refheading')]) 
+        
+        self.pol_submenu=MPMenuSubMenu('POL',items=[ MPMenuItem('REVERSE',  'REVERSE', '# param set POL_REVERSE 1')]) 
+        
+        self.ofd_submenu=MPMenuSubMenu('OFD',items=[MPMenuItem('WEST',  'WEST', '# ofdrift heading 27000'),
+                                         MPMenuItem('EAST',  'EAST', '# ofdrift heading 9000' )]) 
+        
+        self.cland_submenu=MPMenuSubMenu('CLAND',items=[MPMenuItem('START',  'START', '# cland start'),
+                                         MPMenuItem('STOP',  'STOP', '# cland stop'),
+                                         MPMenuItem('ALT ENABLE',  'ALT_ENABLE', '# param set CLND_ALT_ENABLE 1'),
+                                         MPMenuItem('ALT DISABLE',  'ALT_DISABLE', '# param set CLND_ALT_ENABLE 0')]) 
+        
+        self.sid_submenu=MPMenuSubMenu('SID',items=[MPMenuItem('CHIRP',  'CHIRP', '# param set SI_TYPE 2 ; param set SI_TPULSE 0.3 ; param set SI_FGRAD 0.25'),
                                          MPMenuItem('SINE',  'SINE', '# param set SI_TYPE 3 ; param set SI_TPULSE 1.0' ),
                                          MPMenuItem('PULSE', 'PULSE', '# param set SI_TYPE 1 ; param set SI_TPULSE 1.0' ),
                                          MPMenuItem('DBLET', 'DBLET', '# param set SI_TYPE 4 ; param set SI_TPULSE 1.0' ),
                                          MPMenuItem('CMD_ROLL', 'CMD_ROLL', '# sysid roll' ),
                                          MPMenuItem('CMD_PITCH', 'CMD_PITCH', '# sysid pitch' ),
-                                         MPMenuItem('CMD_RUD', 'CMD_RUD', '# sysid rud' ),
-                                         MPMenuItem('--LOAD---',  '--LOAD---',  '# ' ),
-                                         MPMenuItem('Mission Editor',  'Mission Editor', '# module unload misseditor; module load misseditor'),
+                                         MPMenuItem('CMD_RUD', 'CMD_RUD', '# sysid rud' )])
+        
+        self.load_submenu=MPMenuSubMenu('LOAD',items=[MPMenuItem('Mission Editor',  'Mission Editor', '# module unload misseditor; module load misseditor'),
                                          MPMenuItem('submode',  'submode', '# module unload submode; module load mavproxy_submode'),
                                          MPMenuItem('sysid',  'sysid', '# module unload sysid; module load sysid'),
                                          MPMenuItem('Optical Flow Drift',  'Optical Flow Drift', '# module unload ofdrift; module load ofdrift'),
@@ -95,11 +94,15 @@ class CheatModule(mp_module.MPModule):
                                          MPMenuItem('Overlay',  'Overlay', '# module unload overlay; module load mavproxy_overlay'),
                                          MPMenuItem('Sequencer',  'Sequencer', '# module unload sequencer; module load mavproxy_sequencer'),
                                          MPMenuItem('Graph',  'Graph', '# module unload graph; module load graph'),
-                                         MPMenuItem('SunTrack',  'SunTrack', '# module unload suntrack; module load suntrack'),
-                                         MPMenuItem('--UPDATE---',  '--UPDATE--',  '# ' ),
-                                         MPMenuItem('CHEAT', 'CHEAT', '# module unload cheat; module load cheatsheet') ])
+                                         MPMenuItem('SunTrack',  'SunTrack', '# module unload suntrack; module load suntrack')])
+        
+        self.update_submenu=MPMenuSubMenu('UPDATE',items=[MPMenuItem('CHEAT', 'CHEAT', '# module unload cheat; module load cheatsheet') ])
+        
+        self.menu = MPMenuSubMenu('Cheat',items=[])
 
- 
+        self.menu.add([self.cmd_submenu,self.sim_submenu, self.tweak_submenu, self.thr_submenu, self.spd_submenu, self.l1_submenu,
+                       self.wp_loiter_rad_submenu,self.wp_submenu,self.graph_submenu,self.pol_submenu,self.ofd_submenu,self.sid_submenu,
+                       self.cland_submenu,self.load_submenu,self.update_submenu])
         self.console.writeln( "Cheat Operations Loaded." )
         
     def unload(self):
