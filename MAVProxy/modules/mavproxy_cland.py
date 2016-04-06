@@ -75,7 +75,8 @@ class CLANDModule(mp_module.MPModule):
                                                       ("mode", int, 0),  # C-LAND mode (CLAND1 = 0, CLAND2_WP_SET = 1, CLAND2_CONTROL_SET = 2)
                                                       ("cland_duration_sec", int, 1000),  # Maximum duration to remain in C-LAND submode [seconds]
                                                       ("show_error_circle", bool, True),  # Show error circle
-                                                      ("error_circle_multi", float, 1.0),  # multiplier for error circle
+                                                      ("error_circle_multi", float, 3.0),  # multiplier for error circle
+                                                      # error_circle_multi set to 3 because the error is 1 sigma and we want to show 3 sigma
                                                       ("show_line", bool, True)]) # show the line that links the est pos to the true pos
         
         self.add_command('cland', self.cmd_cland, ["cland control",
@@ -287,15 +288,26 @@ class CLANDModule(mp_module.MPModule):
                 self.mpstate.console.set_status(id+'pitch', 'Pitch: %u' % (int(m.pitch)),
                                                  fg='black', row=self.row_3)
                 
-                if m.hacc <= 500: # TODO what value makes sense here... ask AFRL
+                
+                
+                if m.hacc < (250./sqrt(2)): # TODO what value makes sense here... ask AFRL
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='green', row=self.row_2)
                     if self.mpstate.map:  # if the map is loaded...
                         self.estimators[id].error_display = mp_slipmap.SlipCircle(id+"error_circle", 3,
                                                       (m.lat * 1e-7, m.lon * 1e-7),
                                                       self.cland_settings.error_circle_multi*m.hacc,
-                                                      (0, 255, 255), linewidth=2)
+                                                      (0, 255, 255), linewidth=2) #(0, 255, 255), linewidth=2)
                     
+                elif (m.hacc >= (250./sqrt(2)) and m.hacc < 250.):
+                    self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
+                                                 fg='orange', row=self.row_2)
+                    if self.mpstate.map:  # if the map is loaded...
+                        self.estimators[id].error_display = mp_slipmap.SlipCircle(id+"error_circle", 3,
+                                                      (m.lat * 1e-7, m.lon * 1e-7),
+                                                      self.cland_settings.error_circle_multi*m.hacc,
+                                                      (255, 255, 0), linewidth=2)
+                
                 else:
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='red', row=self.row_2)
@@ -304,6 +316,7 @@ class CLANDModule(mp_module.MPModule):
                                                       (m.lat * 1e-7, m.lon * 1e-7),
                                                       self.cland_settings.error_circle_multi*m.hacc,
                                                       (255, 0, 0), linewidth=2)
+                    
                 
                 if m.filter_status <= 128: # TODO what value makes sense here... ask AFRL
                     self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
