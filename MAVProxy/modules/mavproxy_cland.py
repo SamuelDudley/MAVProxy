@@ -318,11 +318,18 @@ class CLANDModule(mp_module.MPModule):
                                                       (255, 0, 0), linewidth=2)
                     
                 
-                if m.filter_status <= 128: # TODO what value makes sense here... ask AFRL
-                    self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
+#                 if m.filter_status <= 128: # TODO what value makes sense here... ask AFRL
+#                     self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
+#                                                  fg='red', row=self.row_2)
+#                 else:
+#                     self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
+#                                                  fg='green', row=self.row_2)
+
+                if m.filter_status == 0: # TODO what value makes sense here... ask AFRL
+                    self.mpstate.console.set_status(id+'filter_status', 'Status: %u' % (int(m.hacc)),
                                                  fg='red', row=self.row_2)
                 else:
-                    self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
+                    self.mpstate.console.set_status(id+'filter_status', 'Status: %u' % (int(m.hacc)),
                                                  fg='green', row=self.row_2)
                     
                 if m.reset_init <= 0: 
