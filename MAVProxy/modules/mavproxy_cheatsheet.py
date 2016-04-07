@@ -57,7 +57,9 @@ class CheatModule(mp_module.MPModule):
                                          MPMenuItem('RADIUS 160',  'RADIUS 160', '# param set WP_LOITER_RAD 160' ),
                                          MPMenuItem('RADIUS 320',  'RADIUS 320', '# param set WP_LOITER_RAD 320' )]) 
 
-        self.wp_submenu=MPMenuSubMenu('WP',items=[MPMenuItem('WP1',  'WP1', '# cheat wp 1')]) 
+        self.wp_submenu=MPMenuSubMenu('WP',items=[MPMenuItem('WP1',  'WP1', '# cheat wp 1'),
+                                                  MPMenuItem('WP2',  'WP2', '# cheat wp 2'),
+                                                  MPMenuItem('WP77',  'WP77', '# cheat wp 77')]) 
         
         self.graph_submenu=MPMenuSubMenu('GRAPH',items=[MPMenuItem('ATTITUDE',  'ATTITUDE', '# graph ylimits -40 40 ; graph degrees(ATTITUDE.roll) NAV_CONTROLLER_OUTPUT.nav_roll ; graph ylimits -30 30 ; graph degrees(ATTITUDE.pitch) NAV_CONTROLLER_OUTPUT.nav_pitch ; graph ylimits False'),
                                          MPMenuItem('NAV_ERR',  'NAV_ERR', '# graph NAV_CONTROLLER_OUTPUT.alt_error ; graph NAV_CONTROLLER_OUTPUT.aspd_error'),
@@ -66,7 +68,8 @@ class CheatModule(mp_module.MPModule):
                                          MPMenuItem('ASPEED',  'ASPEED', '# graph ylimits 25 50 ; graph VFR_HUD.airspeed NAV_CONTROLLER_OUTPUT.aspd_error/100+VFR_HUD.airspeed ; graph ylimits False'),
                                          MPMenuItem('FLOW',  'FLOW', '# graph OPTICAL_FLOW.flow_x OPTICAL_FLOW.flow_y'), 
                                          MPMenuItem('DBGV',  'DBGV',   '# graph DEBUG_VECT.x DEBUG_VECT.y DEBUG_VECT.z'),
-                                         MPMenuItem('POL',  'POL', '# graph POL_COMPASS.polCompass ; graph POL_COMPASS.heading POL_COMPASS.refheading')]) 
+                                         MPMenuItem('POL',  'POL', '# graph POL_COMPASS.polCompass ; graph POL_COMPASS.heading POL_COMPASS.refheading'),
+                                         MPMenuItem('POS_ERR',  'POS_ERR', '#  graph ylimits 0 500 ; graph EST_TELE.hacc ; graph ylimits False')]) 
         
         self.pol_submenu=MPMenuSubMenu('POL',items=[ MPMenuItem('REVERSE',  'REVERSE', '# param set POL_REVERSE 1')]) 
         
