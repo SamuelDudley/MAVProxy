@@ -290,7 +290,7 @@ class CLANDModule(mp_module.MPModule):
                 
                 
                 
-                if m.hacc < (250./sqrt(2)): # TODO what value makes sense here... ask AFRL
+                if m.hacc < 250.: # TODO what value makes sense here... ask AFRL
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='green', row=self.row_2)
                     if self.mpstate.map:  # if the map is loaded...
@@ -299,7 +299,7 @@ class CLANDModule(mp_module.MPModule):
                                                       self.cland_settings.error_circle_multi*m.hacc,
                                                       (0, 255, 255), linewidth=2) #(0, 255, 255), linewidth=2)
                     
-                elif (m.hacc >= (250./sqrt(2)) and m.hacc < 250.):
+                elif (m.hacc >= 250. and m.hacc < sqrt((250.**2)+(250.**2))): #353.55
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='orange', row=self.row_2)
                     if self.mpstate.map:  # if the map is loaded...
@@ -317,27 +317,27 @@ class CLANDModule(mp_module.MPModule):
                                                       self.cland_settings.error_circle_multi*m.hacc,
                                                       (255, 0, 0), linewidth=2)
                     
-                
-#                 if m.filter_status <= 128: # TODO what value makes sense here... ask AFRL
+#                 
+#                 if m.filter_status <= 0: # TODO what value makes sense here... ask AFRL
 #                     self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
 #                                                  fg='red', row=self.row_2)
 #                 else:
 #                     self.mpstate.console.set_status(id+'filter_status', 'Status: {0:0>8b}'.format(m.filter_status),
 #                                                  fg='green', row=self.row_2)
-
+ 
                 if m.filter_status == 0: # TODO what value makes sense here... ask AFRL
-                    self.mpstate.console.set_status(id+'filter_status', 'Status: %u' % (int(m.hacc)),
+                    self.mpstate.console.set_status(id+'filter_status', 'Status: %u' % (int(m.filter_status)),
                                                  fg='red', row=self.row_2)
                 else:
-                    self.mpstate.console.set_status(id+'filter_status', 'Status: %u' % (int(m.hacc)),
+                    self.mpstate.console.set_status(id+'filter_status', 'Status: %u' % (int(m.filter_status)),
                                                  fg='green', row=self.row_2)
                     
-                if m.reset_init <= 0: 
-                    self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
-                                                 fg='green', row=self.row_2)
-                else:
-                    self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
-                                                 fg='red', row=self.row_2)
+#                 if m.reset_init <= 0: 
+#                     self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
+#                                                  fg='green', row=self.row_2)
+#                 else:
+#                     self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
+#                                                  fg='red', row=self.row_2)
                 
                 # show the error display?
                 self.estimators[id].error_display.set_hidden(not self.cland_settings.show_error_circle)
