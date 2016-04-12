@@ -125,6 +125,9 @@ class CLANDModule(mp_module.MPModule):
         elif args[0] == "fence":
             self.load_fence()
         
+        elif args[0] == "draw":
+            self.draw_fence()
+        
         elif args[0] == "notam":
             self.load_notam()
             
@@ -212,6 +215,12 @@ class CLANDModule(mp_module.MPModule):
         # draw the second fence (not used by AP logic but enforced by IDP)
         self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
         self.param_set('FENCE_ACTION', 1,3)
+    
+    def draw_fence(self):
+        '''draw the CLAND fences without interaction with the AP'''
+        self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_home', self.fence_return()[1:], layer=3, linewidth=2, colour=(0, 255, 0)))
+        self.mpstate.map.add_object(mp_slipmap.SlipPolygon('fence_kill', self.fence_kill(), layer=3, linewidth=2, colour=(255, 0, 0)))
+        
     
     def load_notam(self, all = True):
         try:
@@ -332,12 +341,12 @@ class CLANDModule(mp_module.MPModule):
                     self.mpstate.console.set_status(id+'filter_status', 'Status: %u' % (int(m.filter_status)),
                                                  fg='green', row=self.row_2)
                     
-#                 if m.reset_init <= 0: 
-#                     self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
-#                                                  fg='green', row=self.row_2)
-#                 else:
-#                     self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
-#                                                  fg='red', row=self.row_2)
+                if m.reset_init <= 0: 
+                    self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
+                                                 fg='green', row=self.row_2)
+                else:
+                    self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
+                                                 fg='red', row=self.row_2)
                 
                 # show the error display?
                 self.estimators[id].error_display.set_hidden(not self.cland_settings.show_error_circle)
@@ -352,6 +361,7 @@ class CLANDModule(mp_module.MPModule):
                 self.estimators[id].update_extra(m.to_dict())
             
                 # update the console
+                # TODO: geo fix reporting of the nadir camera would be useful here...
                 # TODO: set limits to make the text green or red...
                 self.mpstate.console.set_status(id+'nadir', 'Nadir: %u' % (m.num_features_nadir),
                                                  fg='black', row=self.row_4)
