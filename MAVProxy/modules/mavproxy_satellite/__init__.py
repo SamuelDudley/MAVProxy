@@ -94,7 +94,7 @@ class SatelliteCommunicationModule(mp_module.MPModule):
 
     def send_position(self):
         #time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg
-        self.mavproxy_link.global_position_int_send(0, self.state.safe_lat, self.state.safe_lng,self.state.safe_alt,0,0,0,0,self.state.heading)
+        self.mavproxy_link.global_position_int_send(0, self.state.safe_lat, self.state.safe_lng,self.state.safe_alt,0,0,0,0,self.state.heading*100)
         
     def send_nav(self):
         #nav_roll, nav_pitch, nav_bearing, target_bearing, wp_dist, alt_error, aspd_error, xtrack_error
@@ -130,6 +130,19 @@ class SatelliteCommunicationModule(mp_module.MPModule):
                 buf = msg.get_msgbuf()
                 self.gateway_connection.write(buf)
                 #print msg_type, buf
+                
+            elif msg_type == 'MISSION_SET_CURRENT':
+                #the gcs wants to set the current wp (e.g. wp set 2)
+                #push the msg to the gateway
+                buf = msg.get_msgbuf()
+                self.gateway_connection.write(buf)
+                #print msg_type, buf
+                
+            elif msg_type == 'COMMAND_LONG':
+                #the gcs wants to send a command (e.g. cland start / stop)
+                buf = msg.get_msgbuf()
+                self.gateway_connection.write(buf)
+                
             else:
                 #print msg_type
                 pass
