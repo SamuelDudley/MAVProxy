@@ -14,3 +14,9 @@ MANIFEST
 .DS_Store
 *.bak
 *.orig
+MAVProxy/R3/*
+MAVProxy/R5/*
+MAVProxy/buf/*
+MAVProxy/test/*
+
+
