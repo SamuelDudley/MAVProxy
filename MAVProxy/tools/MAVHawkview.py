@@ -151,6 +151,7 @@ class Hawkview(object):
         'save'       : (self.cmd_save,      'save log'),
         'json'       : (self.cmd_json,      'write json files'),
         'load'       : (self.cmd_load,      'laod log'),
+        'nparr'      : (self.cmd_write_all_np_arrays, 'save np array'),
         }
         
         self.mestate = MEState()
@@ -202,6 +203,10 @@ class Hawkview(object):
             inst = pickle.load(fid)
         fid.close()
         print inst
+    
+    def cmd_write_all_np_arrays(self, args):
+        self.load_np_arrays()
+        
     
     def cmd_json(self, args):
         import json
@@ -548,6 +553,7 @@ class Hawkview(object):
             fmt = '<'+'d'*len(self.mestate.mlog.message_field_count[msg_type])
             fmt_list = [fmt[0]+x for x in fmt[1:]]
             double_type = np.dtype(zip(self.mestate.mlog.message_field_count[msg_type],fmt_list))
+            print double_type
             self.mestate.set_data(msg_type, self.mestate.get_array(msg_type).astype(dtype=double_type, casting='safe', subok=False, copy=False))
             
             #we have built the float64 array.... now apply the atts.
@@ -558,6 +564,12 @@ class Hawkview(object):
     #             print col_name, col_multi
                 if col_multi is not None:
                     self.mestate.get_array(msg_type)[:][col_name]*= float(col_multi)
+                    
+            #save the new numpy array
+            a = self.mestate.get_array(msg_type).astype(dtype=double_type, casting='safe', subok=False, copy=False)
+            np.save(msg_type, a)
+            print a
+            print a.dtype
                     
                     
                 

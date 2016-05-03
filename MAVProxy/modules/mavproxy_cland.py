@@ -25,6 +25,7 @@ class Estimator(object):
         self.vehicle_colour = 'blue'  
         self.vehicle_type = 'plane' # use plane icon for now
         self.icon = self.vehicle_colour + self.vehicle_type + '.png'
+#         self.icon = 'cry.png'
         self.state_update_time = time.time()
         self.extra_update_time = None
         self.distance = 0
@@ -52,7 +53,11 @@ class CLANDModule(mp_module.MPModule):
         
         self.master_cland_link = '/dev/uhard' # tcp:127.0.0.1:5760' # '/dev/uhard'
         
-        
+        self.pam = False
+        self.cland_error_magic = 100.
+        self.reset_count = 0
+        self.reset_time = False
+        self.last_reset_time = None
         self.estimators = {}
         self.experimental_mode= {0:"none",1:"cland1",2:"cland2",3:"cland3",4:"systemid",5:"ofdrift"} # as per mavlink msg defn.
         self.experimental_timer = None
@@ -134,10 +139,20 @@ class CLANDModule(mp_module.MPModule):
         elif args[0] == "master":
             self.set_master()
         
+        elif args[0] == "pam":
+            self.toggle_pam()
             
         else:
             print(usage)
-            
+    
+    def toggle_pam(self):
+        '''toggle pam mode'''
+        if self.pam:
+            self.pam = False
+        else:
+            self.pam = True
+        
+        print self.pam
             
     def send_reset(self):
         '''send a reset command to the AP in order to reset the estimator'''
@@ -254,7 +269,19 @@ class CLANDModule(mp_module.MPModule):
                 # if not then add it
                 self.estimators[id] = Estimator(id=id, state=m.to_dict())
                 if self.mpstate.map:  # if the map is loaded...
+                    
                     icon = self.mpstate.map.icon(self.estimators[id].icon)
+                    if self.pam:
+                        if m.hacc < 15:
+                            icon =  self.mpstate.map.icon('vhappy.png')
+                        elif (m.hacc >= 15 and m.hacc < 30):
+                            icon =  self.mpstate.map.icon('happy.png')
+                        elif (m.hacc >= 30  and m.hacc < 40):
+                            icon =  self.mpstate.map.icon('moot.png')
+                        elif (m.hacc >= 40  and m.hacc < 100):
+                            icon =  self.mpstate.map.icon('sad.png')
+                        else:
+                            icon =  self.mpstate.map.icon('cry.png')
                     # draw the vehicle on the map
                     self.mpstate.map.add_object(mp_slipmap.SlipIcon(id, (m.lat * 1e-7, m.lon * 1e-7),
                                                                     icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
@@ -273,7 +300,23 @@ class CLANDModule(mp_module.MPModule):
                 self.estimators[id].update_state(m.to_dict())
                 if self.mpstate.map:  # if the map is loaded...
                     # update the map
-                    self.mpstate.map.set_position(id, (m.lat * 1e-7, m.lon * 1e-7), rotation=mavutil.wrap_180(m.yaw))
+                    icon = self.mpstate.map.icon(self.estimators[id].icon)
+                    if self.pam:
+                        if m.hacc < 15:
+                            icon =  self.mpstate.map.icon('vhappy.png')
+                        elif (m.hacc >= 15 and m.hacc < 30):
+                            icon =  self.mpstate.map.icon('happy.png')
+                        elif (m.hacc >= 30  and m.hacc < 40):
+                            icon =  self.mpstate.map.icon('moot.png')
+                        elif (m.hacc >= 40  and m.hacc < 100):
+                            icon =  self.mpstate.map.icon('sad.png')
+                        else:
+                            icon =  self.mpstate.map.icon('cry.png')
+                    # draw the vehicle on the map
+                    self.mpstate.map.add_object(mp_slipmap.SlipIcon(id, (m.lat * 1e-7, m.lon * 1e-7),
+                                                                    icon, layer=3, rotation=mavutil.wrap_180(m.yaw), follow=False,
+                                                                    trail=mp_slipmap.SlipTrail(colour=(0, 255, 255))))
+#                     self.mpstate.map.set_position(id, (m.lat * 1e-7, m.lon * 1e-7), rotation=mavutil.wrap_180(m.yaw))
                 
                 # update the console
                 self.mpstate.console.set_status(id+'hdg', 'Hdg: %u/%u' % (int(m.yaw), m.gcourse*1.0e-2),
@@ -298,8 +341,7 @@ class CLANDModule(mp_module.MPModule):
                                                  fg='black', row=self.row_3)
                 
                 
-                
-                if m.hacc < 250.: # TODO what value makes sense here... ask AFRL
+                if m.hacc < self.cland_error_magic: # TODO what value makes sense here... ask AFRL
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='green', row=self.row_2)
                     if self.mpstate.map:  # if the map is loaded...
@@ -308,7 +350,7 @@ class CLANDModule(mp_module.MPModule):
                                                       self.cland_settings.error_circle_multi*m.hacc,
                                                       (0, 255, 255), linewidth=2) #(0, 255, 255), linewidth=2)
                     
-                elif (m.hacc >= 250. and m.hacc < sqrt((250.**2)+(250.**2))): #353.55
+                elif (m.hacc >= self.cland_error_magic and m.hacc < sqrt((self.cland_error_magic**2)+(self.cland_error_magic**2))): #353.55
                     self.mpstate.console.set_status(id+'acc', 'Acc: %u/%u' % (int(m.hacc), int(m.vacc)),
                                                  fg='orange', row=self.row_2)
                     if self.mpstate.map:  # if the map is loaded...
@@ -347,6 +389,26 @@ class CLANDModule(mp_module.MPModule):
                 else:
                     self.mpstate.console.set_status(id+'counter', 'Reset: %u' % (m.reset_counter),
                                                  fg='red', row=self.row_2)
+                
+                
+                
+                if m.reset_counter != self.reset_count:
+                    # the reset counter has changed
+                    self.reset_count = m.reset_counter
+                    if self.last_reset_time is not None:
+                        self.last_reset_time = int(time.time() - self.reset_time)
+                    else:
+                        self.last_reset_time = 0
+                    self.reset_time = time.time()
+                
+                else:
+                                      
+                    self.mpstate.console.set_status(id+'curr_reset_time', 'Curr: %u' % (int(time.time() - self.reset_time)),
+                                                 fg='green', row=self.row_2)
+                    
+                    if self.last_reset_time is not None:
+                        self.mpstate.console.set_status(id+'last_reset_time', 'Prev: %u' % (self.last_reset_time),
+                                                 fg='green', row=self.row_2)
                 
                 # show the error display?
                 self.estimators[id].error_display.set_hidden(not self.cland_settings.show_error_circle)
