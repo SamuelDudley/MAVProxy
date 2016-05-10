@@ -209,19 +209,27 @@ class RTD_Thread(threading.Thread):
         msg = self.connectionRTD.recv_msg()
         if msg is not None:
             msg_type = msg.get_type()
-<<<<<<< HEAD
             #if msg_type == 'SET_MODE':
                 #the gcs wants to set the AP mode (e.g. RTL)
                 #push the msg to the gateway
         
-            self.buf = msg.get_msgbuf()
-=======
-            if msg_type == 'SET_MODE':
-                #the gcs wants to set the AP mode (e.g. RTL)
-                #push the msg to the gateway
-                self.buf = msg.get_msgbuf()
->>>>>>> branch 'cland1' of /home/uas/Dropbox/Shared_Git/MAVProxy.git
+            self.buf = msg.get_msgbuf() # we ignore the type... if it got this far we are sending it
             
+#             if msg_type == 'SET_MODE':
+#                 #the gcs wants to set the AP mode (e.g. RTL)
+#                 #push the msg to the gateway
+#                 self.buf = msg.get_msgbuf()
+#                 
+#             elif msg_type == 'MISSION_SET_CURRENT':
+#                 #the gcs wants to set the current wp (e.g. wp set 2)
+#                 #push the msg to the gateway
+#                 self.buf = msg.get_msgbuf()
+#                 
+#                 
+#             elif msg_type == 'COMMAND_LONG':
+#                 #the gcs wants to send a command (e.g. cland start / stop)
+#                 buf = msg.get_msgbuf()
+                
 #         n = 16*1024#None#16*1024
 #         bufLength = len(self.buf)
 #         while True:

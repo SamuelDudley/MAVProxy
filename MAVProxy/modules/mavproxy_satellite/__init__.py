@@ -19,7 +19,6 @@ import threading
 class SatelliteState(object):
     def __init__(self):
         self.base_mode = 1
-<<<<<<< HEAD
         self.targetIDPNumber = 1 #NOTE: this needs to be changed to reflect the number on the top of the IDP
         self.lat = 0
         self.lng = 0
@@ -154,7 +153,7 @@ class SatelliteCommunicationModule(mp_module.MPModule):
                 
             else:
                 print msg_type
-=======
+
         self.targetIDPNumber = 2 #NOTE: this needs to be changed to reflect the number on the top of the IDP
         self.lat = 0
         self.lng = 0
@@ -281,7 +280,6 @@ class SatelliteCommunicationModule(mp_module.MPModule):
                 
             else:
                 #print msg_type
->>>>>>> branch 'cland1' of /home/uas/Dropbox/Shared_Git/MAVProxy.git
                 pass
                 
             
