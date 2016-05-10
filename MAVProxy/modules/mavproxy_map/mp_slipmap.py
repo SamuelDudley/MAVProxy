@@ -91,6 +91,7 @@ class MPSlipMap():
         self.app = wx.App(False)
         self.app.SetExitOnFrameDelete(True)
         self.app.frame = MPSlipMapFrame(state=self)
+        self.app.frame.SetWindowStyle(wx.STAY_ON_TOP)
         self.app.frame.Show()
         self.app.MainLoop()
 

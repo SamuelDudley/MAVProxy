@@ -20,8 +20,8 @@ class RCModule(mp_module.MPModule):
 
     def idle_task(self):
         if self.override_period.trigger():
-            if (self.override != [ 0 ] * 16 or
-                self.override != self.last_override or
+            if (self.override != [ 0 ] * 16 and
+                self.override != self.last_override and
                 self.override_counter > 0):
                 self.last_override = self.override[:]
                 self.send_rc_override()
@@ -34,9 +34,9 @@ class RCModule(mp_module.MPModule):
             buf = struct.pack('<HHHHHHHHHHHHHHHH',
                               *self.override)
             self.sitl_output.write(buf)
-        else:
-            chan8 = self.override[:8]
-            self.master.mav.rc_channels_override_send(self.target_system,
+        #else:
+        chan8 = self.override[:8]
+        self.master.mav.rc_channels_override_send(self.target_system,
                                                            self.target_component,
                                                            *chan8)
 
