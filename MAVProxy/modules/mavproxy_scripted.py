@@ -49,7 +49,7 @@ class TestingMessageConsole(MessageConsole):
         try:
             self.parent_pipe_send.send(Text(text, fg, bg))
             if self.out_file != None :
-                print text
+                #print text
                 if isinstance(text, str):
                     self.out_file.write(text)
                 else:
