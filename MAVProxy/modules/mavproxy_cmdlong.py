@@ -20,6 +20,7 @@ class CmdlongModule(mp_module.MPModule):
         self.add_command('posvel', self.cmd_posvel, "posvel")
         self.add_command('parachute', self.cmd_parachute, "parachute",
                          ['<enable|disable|release>'])
+        self.add_command('camera_payload', self.cmd_camera_payload,"camera_payload")
         self.add_command('long', self.cmd_long, "execute mavlink long command",
                          self.cmd_long_commands())
 
@@ -31,6 +32,32 @@ class CmdlongModule(mp_module.MPModule):
             ret.append(att)
             ret.append(str(att[8:]))
         return ret
+    
+    def cmd_camera_payload(self, args):
+        '''enable or disable camera payload'''
+        if ( len(args) != 1):
+            print("Usage: camera_payload 0|1")
+            return
+        
+        if (len(args) == 1):
+            enabled = int(args[0])
+            if enabled :
+                print("Switching on camera payload")
+            else :
+                print ("Switching off camera payload")
+        
+            self.master.mav.command_long_send(
+                self.settings.target_system,  # target_system
+                mavutil.mavlink.MAV_COMP_ID_SYSTEM_CONTROL, # target_component
+                mavutil.mavlink.MAV_CMD_DO_TRIGGER_CONTROL, # command
+                0, # confirmation
+                enabled, # param1
+                0, # param2
+                0, # param3
+                0, # param4
+                0, # param5
+                0, # param6
+                0) # param7
 
     def cmd_takeoff(self, args):
         '''take off'''
