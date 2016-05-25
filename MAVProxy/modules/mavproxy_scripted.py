@@ -5,65 +5,11 @@ import time, math, sys, cmd
 from threading import Thread
 
 from MAVProxy.modules.lib import mp_module
-from MAVProxy.modules.lib import wxconsole
-import multiprocessing, threading
 from MAVProxy.modules.lib.wxconsole_util import Value, Text
-from MAVProxy.modules.lib.wxconsole import MessageConsole
 from MAVProxy.modules.mavproxy_map import mp_elevation
-from MAVProxy.modules.mavproxy_console import ConsoleModule
 from MAVProxy.modules.lib import mp_util
-from MAVProxy.modules.lib import wxsettings
-from MAVProxy.modules.lib import textconsole
 from MAVProxy.modules.lib.mp_menu import *
-
-
-class TestingMessageConsole(MessageConsole):
-    '''
-    a message console for Testing that duplicates output to file
-    '''
-    def __init__(self,out_fname):
-        MessageConsole.__init__(self)
-        self.out_file=None
-        try:
-            self.out_file = open(out_fname, 'w')
-        except Exception :
-            print "Couldn't open output file "+out_fname
-
-    def child_task(self):
-        '''child process - this holds all the GUI elements'''
-        self.parent_pipe_send.close()
-        self.parent_pipe_recv.close()
-         
-        import MAVProxy.modules.lib.wx_processguard
-        from MAVProxy.modules.lib.wx_loader import wx
-        from MAVProxy.modules.lib.wxconsole_ui import ConsoleFrame
-        app = wx.App(False)
-        app.frame = ConsoleFrame(state=self, title=self.title)
-        app.frame.SetDoubleBuffered(True)
-        app.frame.SetFocus()
-        app.frame.SetWindowStyle(wx.STAY_ON_TOP)
-        app.MainLoop()
-
-    def write(self, text, fg='black', bg='white'):
-        '''write to the console'''
-        try:
-            self.parent_pipe_send.send(Text(text, fg, bg))
-            if self.out_file != None :
-                #print text
-                if isinstance(text, str):
-                    self.out_file.write(text)
-                else:
-                    self.out_file.write(str(text))
-                self.out_file.flush()
-        except Exception:
-            pass
-
-    def close(self):
-        '''close the console'''
-        MessageConsole.close(self)
-        if self.out_file != None :
-            self.out_file.close()
-        
+       
 
 class TestCommand:
 
@@ -111,10 +57,9 @@ class TestThread(Thread):
 
 
 
-class ScriptedModule(ConsoleModule):
+class ScriptedModule(mp_module.MPModule):
     def __init__(self, mpstate):
-        mp_module.MPModule.__init__(self,mpstate, "testing console", "Testing GUI console", public=True)
-        self.set_console()
+        mp_module.MPModule.__init__(self,mpstate, "scripted", "Scripted module", public=True)
         self.temp_mission_fname="/tmp/test_mission.txt"
         self.landing_commence_wp=100
         self.current_wp=0
@@ -126,52 +71,6 @@ class ScriptedModule(ConsoleModule):
         self.add_command('scripted', self.cmd_scripted,
                          "scripted",
                          [])     
-        
-    def set_console(self) :
-        self.in_air = False
-        self.start_time = 0.0
-        self.total_time = 0.0
-        self.speed = 0
-        self.max_link_num = 0
-        self.last_sys_status_health = 0
-        #self.mpstate.console = wxconsole.MessageConsole(title='Testing Console')
-        time_string=time.strftime("%Y%m%d-%H%M%S")
-        self.mpstate.console=TestingMessageConsole("/tmp/testing_"+time_string+".txt")
-        self.mpstate.console.set_status('Mode', 'UNKNOWN', row=0, fg='blue')
-        self.mpstate.console.set_status('ARM', 'ARM', fg='grey', row=0)
-        self.mpstate.console.set_status('GPS', 'GPS: --', fg='red', row=0)
-        self.mpstate.console.set_status('Vcc', 'Vcc: --', fg='red', row=0)
-        self.mpstate.console.set_status('Radio', 'Radio: --', row=0)
-        self.mpstate.console.set_status('INS', 'INS', fg='grey', row=0)
-        self.mpstate.console.set_status('MAG', 'MAG', fg='grey', row=0)
-        self.mpstate.console.set_status('AS', 'AS', fg='grey', row=0)
-        self.mpstate.console.set_status('RNG', 'RNG', fg='grey', row=0)
-        self.mpstate.console.set_status('AHRS', 'AHRS', fg='grey', row=0)
-        self.mpstate.console.set_status('EKF', 'EKF', fg='grey', row=0)
-        self.mpstate.console.set_status('Heading', 'Hdg ---/---', row=2)
-        self.mpstate.console.set_status('Alt', 'Alt ---', row=2)
-        self.mpstate.console.set_status('AGL', 'AGL ---/---', row=2)
-        self.mpstate.console.set_status('AirSpeed', 'AirSpeed --', row=2)
-        self.mpstate.console.set_status('GPSSpeed', 'GPSSpeed --', row=2)
-        self.mpstate.console.set_status('Thr', 'Thr ---', row=2)
-        self.mpstate.console.set_status('Roll', 'Roll ---', row=2)
-        self.mpstate.console.set_status('Pitch', 'Pitch ---', row=2)
-        self.mpstate.console.set_status('Wind', 'Wind ---/---', row=2)
-        self.mpstate.console.set_status('WP', 'WP --', row=3)
-        self.mpstate.console.set_status('WPDist', 'Distance ---', row=3)
-        self.mpstate.console.set_status('WPBearing', 'Bearing ---', row=3)
-        self.mpstate.console.set_status('AltError', 'AltError --', row=3)
-        self.mpstate.console.set_status('AspdError', 'AspdError --', row=3)
-        self.mpstate.console.set_status('FlightTime', 'FlightTime --', row=3)
-        self.mpstate.console.set_status('ETR', 'ETR --', row=3)
-        self.mpstate.console.ElevationMap = mp_elevation.ElevationModel()
-        
-        # create the main menu
-        if mp_util.has_wxpython:
-            self.menu = MPMenuTop([])
-            self.add_menu(MPMenuSubMenu('MAVProxy',
-                                        items=[MPMenuItem('Settings', 'Settings', 'menuSettings'),
-                                               MPMenuItem('Map', 'Load Map', '# module load map')]))
     
     def run_cmd_thread(self,test_case): 
         cmd_thread = TestThread(self)
