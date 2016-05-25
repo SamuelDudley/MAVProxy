@@ -35,24 +35,34 @@ class CmdlongModule(mp_module.MPModule):
     
     def cmd_camera_payload(self, args):
         '''enable or disable camera payload'''
-        if ( len(args) != 1):
-            print("Usage: camera_payload 0|1")
+        if ( len(args) != 2):
+            print("Usage: camera_payload 'sam'|'mob' 0|1")
             return
         
-        if (len(args) == 1):
-            enabled = int(args[0])
-            if enabled :
-                print("Switching on camera payload")
+        if (len(args) == 2):
+            camera_ch=0 # no camera type
+            camera_type=args[0]
+            if camera_type.upper()=='SAM' :
+                camera_ch=10 # this needs to match the output channel used for sam's payload
+            elif camera_type.upper()=='MOB' :
+                camera_ch=11 # this needs to match the output channel used for mobius camera
             else :
-                print ("Switching off camera payload")
+                print("Usage: camera_payload 'sam'|'mob' 0|1")
+                return
+                
+            enabled = int(args[1])
+            if enabled :
+                print("Switching on camera payload for "+camera_type)
+            else :
+                print ("Switching off camera payload for "+camera_type)
         
             self.master.mav.command_long_send(
                 self.settings.target_system,  # target_system
                 mavutil.mavlink.MAV_COMP_ID_SYSTEM_CONTROL, # target_component
                 mavutil.mavlink.MAV_CMD_DO_TRIGGER_CONTROL, # command
                 0, # confirmation
-                enabled, # param1
-                0, # param2
+                camera_ch, # param1
+                enabled, # param2
                 0, # param3
                 0, # param4
                 0, # param5
