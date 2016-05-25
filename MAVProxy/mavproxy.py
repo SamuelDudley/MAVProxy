@@ -166,6 +166,18 @@ class MPState(object):
                            "<unload|reload> (LOADEDMODULES)"]
             }
 
+        # console++ size and position
+        self.console_w=-1
+        self.console_h=-1
+        self.console_x=-1
+        self.console_y=-1
+        
+        # map++ size and position
+        self.map_w=-1
+        self.map_h=-1
+        self.map_x=-1
+        self.map_y=-1
+
         self.status = MPStatus()
 
         # master mavlink device
@@ -187,6 +199,7 @@ class MPState(object):
         self.aliases = {}
         import platform
         self.system = platform.system()
+
 
     def module(self, name):
         '''Find a public module (most modules are private)'''
@@ -891,6 +904,12 @@ if __name__ == '__main__':
     parser.add_option("--cmd", dest="cmd", help="initial commands", default=None, action='append')
     parser.add_option("--console", action='store_true', help="use GUI console")
     parser.add_option("--map", action='store_true', help="load map module")
+    parser.add_option("--console++", dest="console_plus", action='append',
+                      metavar="W:H:X:Y", help="Console position and size (width, height, x, y)",
+                      default=[])
+    parser.add_option("--map++", dest="map_plus", action='append',
+                  metavar="W:H:X:Y", help="map position and size (width, height, x, y)",
+                  default=[])
     parser.add_option(
         '--load-module',
         action='append',
@@ -1032,12 +1051,44 @@ if __name__ == '__main__':
         for m in standard_modules:
             load_module(m, quiet=True)
 
-    if opts.console:
-        process_stdin('module load console')
+    if opts.console_plus :
+        print "Console++ will be loaded."
+        pos_list=opts.console_plus[0].split(":")
+        if len(pos_list)==4 :
+            try :
+                mpstate.console_w=int(pos_list[0])
+                mpstate.console_h=int(pos_list[1])
+                mpstate.console_x=int(pos_list[2])
+                mpstate.console_y=int(pos_list[3])
+            except :
+                print "Invalid console++ dimensions or position. Using default values."
+        else :
+            print "Insufficient console++ dimensions or position values. Using default values." 
+        load_module('console++',quiet=True)
+
+    if opts.console :
+        process_stdin('module load console') 
+        
+    
+    if opts.map_plus :
+        print "Map++ will be loaded."
+        pos_list=opts.map_plus[0].split(":")
+        if len(pos_list)==4 :
+            try :
+                mpstate.map_w=int(pos_list[0])
+                mpstate.map_h=int(pos_list[1])
+                mpstate.map_x=int(pos_list[2])
+                mpstate.map_y=int(pos_list[3])
+            except :
+                print "Invalid map++ dimensions or position. Using default values."
+        else :
+            print "Insufficient map++ dimensions or position values. Using default values." 
+        load_module('map++',quiet=True)
+
 
     if opts.map:
         process_stdin('module load map')
-
+        
     for module in opts.load_module:
         modlist = module.split(',')
         for mod in modlist:
