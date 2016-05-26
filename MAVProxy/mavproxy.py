@@ -13,6 +13,7 @@ import serial, Queue, select
 import traceback
 import select
 import shlex
+import re
 
 from MAVProxy.modules.lib import textconsole
 from MAVProxy.modules.lib import rline
@@ -203,6 +204,13 @@ class MPState(object):
 
     def module(self, name):
         '''Find a public module (most modules are private)'''
+        # fix for existing modules to use map++ or console++
+        if name == "map" and name not in self.public_modules :
+            #print "'map' not loaded so trying 'map++'..."
+            name="map++" # try to find map++ instead
+        if name == "console" and name not in self.public_modules :  
+            #print "'console' not loaded so trying 'console++'..." 
+            name="console++" # try to find console++ instead     
         if name in self.public_modules:
             return self.public_modules[name]
         return None
@@ -1053,7 +1061,7 @@ if __name__ == '__main__':
 
     if opts.console_plus :
         print "Console++ will be loaded."
-        pos_list=opts.console_plus[0].split(":")
+        pos_list=re.split('[: ,]',opts.console_plus[0])
         if len(pos_list)==4 :
             try :
                 mpstate.console_w=int(pos_list[0])
@@ -1072,7 +1080,7 @@ if __name__ == '__main__':
     
     if opts.map_plus :
         print "Map++ will be loaded."
-        pos_list=opts.map_plus[0].split(":")
+        pos_list=re.split('[: ,]',opts.map_plus[0])
         if len(pos_list)==4 :
             try :
                 mpstate.map_w=int(pos_list[0])

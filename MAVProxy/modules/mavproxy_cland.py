@@ -90,13 +90,9 @@ class CLANDModule(mp_module.MPModule):
                                                  "set (CLANDSETTING)"])
         
         # set some map options we would otherwise have to type / script
-        if 'map' in mpstate.public_modules :
-            mpstate.public_modules['map'].map_settings.loitercircle = True # Show loiter radius on map (useful!)
-            mpstate.public_modules['map'].map_settings.showgps2pos = 0 # Hide the second GPS pos from the map
-        if 'map++' in mpstate.public_modules :
-            mpstate.public_modules['map++'].map_settings.loitercircle = True # Show loiter radius on map (useful!)
-            mpstate.public_modules['map++'].map_settings.showgps2pos = 0 # Hide the second GPS pos from the map
-      
+        mpstate.module('map').map_settings.loitercircle = True # Show loiter radius on map (useful!)
+        mpstate.module('map').map_settings.showgps2pos = 0 # Hide the second GPS pos from the map
+
         # the canbus GPS reports the wrong (fixed) heading and can cause confusion.
         # GPS2 status is still displayed in the console for health check purposes.
         mpstate.map.add_object(mp_slipmap.SlipBrightness(0.7)) # this makes the drawn icons / lines much easier to see...
