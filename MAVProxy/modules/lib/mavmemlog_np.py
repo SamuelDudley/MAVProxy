@@ -23,8 +23,7 @@ class mavmemlog(mavutil.mavfile):
         last_timestamp = None
         last_pct = 0
         
-        self.ignore = ['FMT', 'PARM', 'MSG',
-                       'TERRAIN_DATA', 'STATUSTEXT', 'PARAM_VALUE']
+        self.ignore = ['BAD_DATA']
         self.write_flag = False
         self.fds = {}
         self.dtypes = {}
@@ -90,14 +89,14 @@ class mavmemlog(mavutil.mavfile):
                     struct_fmt = m.fmt.msg_struct # a string used to discribe how to pack the vars of a BIN file
                 else:
                     struct_fmt = m.format # a string used to discribe how to pack the vars of a tlog file
-                struct_fmt+='d'
+                struct_fmt+='d' # add a double to hold the common timestamp
                 self.struct_fmts[type] = struct_fmt
                 
                 if self.is_binary_flash_log:
                     struct_columns = m.fmt.columns # the names of the cols of a BIN
                 else:
                     struct_columns = m.ordered_fieldnames # the names of the cols of a tlog
-                struct_columns.append('timestamp')
+                struct_columns.append('timestamp') # add a common timestamp col
                 
                 if self.is_binary_flash_log:
                     msg_mults = m.fmt.msg_mults # mults to apply later (for BIN)
@@ -108,11 +107,28 @@ class mavmemlog(mavutil.mavfile):
                 self.msg_mults[type]= {key:value for key, value in zip(struct_columns,msg_mults)}
                 
                 self.fds[type] = open(os.path.join(folder, type+'.np'), 'ab') # open a binary file to write the msg fields to
+                struct_fmt_list = []
+                digit_string = ''
+                for char in struct_fmt: # read the structure format one chr at a time
+                    
+                    if char == 's': # if its a string
+                        char = 'S' # replace lower case s to make numpy happy
+                        
+                    if char.isdigit(): # if its a digit then keep track of it
+                        digit_string+=char
+                    else:
+                        if len(digit_string) != 0: # if we have any stored digits
+                           struct_fmt_list.append(char+digit_string)  
+                           digit_string = ''
+                        else:
+                            struct_fmt_list.append(char) # we have no stored digits
+                struct_fmt = struct_fmt_list
                 
+#                 print [struct_fmt[0]+x for x in struct_fmt[1:]]
                 msg_dtype = np.dtype(zip(struct_columns,[struct_fmt[0]+x for x in struct_fmt[1:]])) # make the struct datatype for this msg
 #                 print msg_dtype
                 self.dtypes[type] = msg_dtype #store the dtype against its msg type
-                # get the field names and make colums
+                # get the field names and make columns
                 self.message_field_count[type] = struct_columns
                         
             if self.write_flag:

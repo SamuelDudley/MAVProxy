@@ -546,14 +546,19 @@ class Hawkview(object):
         for msg_type in msg_types:
             
             self.mestate.add_array(msg_type)
-            
-#             print self.mestate.get_array(msg_type)
             # we have loaded the array, but we cant do operations on it simply as the datatypes are set.
-            # recast to a float64 array
-            fmt = '<'+'d'*len(self.mestate.mlog.message_field_count[msg_type])
-            fmt_list = [fmt[0]+x for x in fmt[1:]]
+            
+            fmt_list = []
+            # step over the array datatype structure
+            for x in range(len(self.mestate.mlog.dtypes[msg_type])):
+                t = self.mestate.mlog.dtypes[msg_type][x]
+                if np.issubdtype(t, str): # if the datatype is a string then keep it
+                    fmt_list.append(t)
+                else:
+                    fmt_list.append(np.dtype('float64')) # attempt to convert all the non-strings / numbers to doubles
+
             double_type = np.dtype(zip(self.mestate.mlog.message_field_count[msg_type],fmt_list))
-            print double_type
+            # re cast the array for use
             self.mestate.set_data(msg_type, self.mestate.get_array(msg_type).astype(dtype=double_type, casting='safe', subok=False, copy=False))
             
             #we have built the float64 array.... now apply the atts.
@@ -568,8 +573,8 @@ class Hawkview(object):
             #save the new numpy array
             a = self.mestate.get_array(msg_type).astype(dtype=double_type, casting='safe', subok=False, copy=False)
             np.save(msg_type, a)
-            print a
-            print a.dtype
+#             print a
+#             print a.dtype
                     
                     
                 
