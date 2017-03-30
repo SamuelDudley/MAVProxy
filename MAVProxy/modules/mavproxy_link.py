@@ -324,8 +324,8 @@ class LinkModule(mp_module.MPModule):
             # don't process delayed packets that cause double reporting
             if mtype in delayedPackets:
                 return
-
-        if mtype == 'HEARTBEAT' and m.type != mavutil.mavlink.MAV_TYPE_GCS:
+        reject_types = [mavutil.mavlink.MAV_TYPE_GCS, mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER]
+        if mtype == 'HEARTBEAT' and m.type not in reject_types:
             if self.settings.target_system == 0 and self.settings.target_system != m.get_srcSystem():
                 self.settings.target_system = m.get_srcSystem()
                 self.say("online system %u" % self.settings.target_system,'message')
