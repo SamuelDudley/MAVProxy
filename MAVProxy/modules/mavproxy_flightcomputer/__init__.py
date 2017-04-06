@@ -29,14 +29,14 @@ class flightcomputer(mp_module.MPModule):
         self.flightcomputer_settings = mp_settings.MPSettings(
             [ ('verbose', bool, False),
           ])
-        self.add_command('flightcomputer', self.cmd_flightcomputer, "flightcomputer module", ['status','set (LOGSETTING)'])
+        self.add_command('fc', self.cmd_flightcomputer, "flightcomputer module", ['status','set (LOGSETTING)'])
         self.transmitters = self.load_transmitter_config('CMAC_Transmitters.json')
         self.draw_transmitters()
-        self.system_whitelist = []
+        self.system_whitelist = [11]
         
     def usage(self):
         '''show help on command line options'''
-        return "Usage: flightcomputer <status|set|draw>"
+        return "Usage: fc <status|set|draw|bootstrap|reset>" # TODO: write and handle commands on the flight computer
 
     def cmd_flightcomputer(self, args):
         '''control behaviour of the module'''
@@ -48,6 +48,11 @@ class flightcomputer(mp_module.MPModule):
             self.flightcomputer_settings.command(args[1:])
         elif args[0] == "draw":
             self.draw_transmitters()
+        elif args[0] == "param":
+            if args[1].lower() == 'set':
+                self.send_param(args[2].upper(), float(args[3]))
+        elif args[0] == "bootstrap":
+            self.send_bootstrap_msg(float(args[1]))
         else:
             print self.usage()
 
@@ -69,7 +74,25 @@ class flightcomputer(mp_module.MPModule):
             return
         
         # everything pass this point is from a ONBOARD_CONTROLLER
+        
+        if m.get_type() == 'SYSTEM_STATUS':
+            pass
+        
+        if m.get_type() == 'RF_DATA':
+            pass
+        
+        if m.get_type() == 'MSG_RATE':
+            pass
     
+    def send_param(self, param, val):
+        for system in self.system_whitelist:
+            self.master.mav.param_set_send(
+                target_system = system,
+                target_component = 220,
+                param_id = param,
+                param_value = val,
+                param_type = mavutil.mavlink.MAV_PARAM_TYPE_UINT32 # TODO: handle this
+                )
 
     def load_transmitter_config(self, file_name):
         file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), file_name)
