@@ -83,7 +83,18 @@ class flightcomputer(mp_module.MPModule):
         
         if m.get_type() == 'MSG_RATE':
             pass
-    
+        
+        if m.get_type() == 'BEACON_POSITION_AND_RANGE':
+            if self.mpstate.map:
+                for (idx,transmitter) in enumerate(self.transmitters):
+                    if idx == m.id:
+                        radius = m.distance
+                        circle = mp_slipmap.SlipCircle('Transmitter Radius %u' % (idx+1), 'TransmitterRanges',
+                                                              (transmitter['latitude'], transmitter['longitude']),
+                                                              radius,
+                                                              (255,115,0), linewidth=1)
+                        self.mpstate.map.add_object(circle)
+        
     def send_param(self, param, val):
         for system in self.system_whitelist:
             self.master.mav.param_set_send(
@@ -102,6 +113,7 @@ class flightcomputer(mp_module.MPModule):
     def draw_transmitters(self):
         # draw the transmitter(s) on the map
         if self.mpstate.map:
+            self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('TransmitterRanges'))
             self.mpstate.map.add_object(mp_slipmap.SlipClearLayer('Transmitters'))
             for (idx,transmitter) in enumerate(self.transmitters):
                 radius = 10
