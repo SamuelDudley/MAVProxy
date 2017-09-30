@@ -266,7 +266,15 @@ def cmd_watch(args):
     mpstate.status.watch = args[0]
     print("Watching %s" % mpstate.status.watch)
 
-def load_module(modname, quiet=False):
+def generate_kwargs(args):
+    kwargs = {}
+    for arg in args[1:]:
+        if len(arg) >= 3 and arg.count('=', 1, -1) == 1:
+            # assume a name-value pair
+            kwargs[arg.split('=')[0]] = arg.split('=')[1]
+    return kwargs
+
+def load_module(modname, quiet=False, **kwargs):
     '''load a module'''
     modpaths = ['MAVProxy.modules.mavproxy_%s' % modname, modname]
     for (m,pm) in mpstate.modules:
@@ -278,11 +286,14 @@ def load_module(modname, quiet=False):
         try:
             m = import_package(modpath)
             reload(m)
-            module = m.init(mpstate)
+            module = m.init(mpstate, **kwargs)
             if isinstance(module, mp_module.MPModule):
                 mpstate.modules.append((module, m))
                 if not quiet:
-                    print("Loaded module %s" % (modname,))
+                    if kwargs:
+                        print("Loaded module %s with kwargs = %s" % (modname, kwargs))
+                    else:
+                        print("Loaded module %s" % (modname,))
                 return True
             else:
                 ex = "%s.init did not return a MPModule instance" % modname
@@ -320,13 +331,19 @@ def cmd_module(args):
         if len(args) < 2:
             print("usage: module load <name>")
             return
-        load_module(args[1])
+        kwargs = generate_kwargs(args)
+        try:
+            load_module(args[1], **kwargs)
+        except TypeError:
+            print("%s module does not support keyword arguments"% args[1])
+            return
     elif args[0] == "reload":
         if len(args) < 2:
             print("usage: module reload <name>")
             return
         modname = args[1]
         pmodule = None
+        kwargs = generate_kwargs(args)
         for (m,pm) in mpstate.modules:
             if m.name == modname:
                 pmodule = pm
@@ -340,8 +357,11 @@ def cmd_module(args):
             except ImportError:
                 clear_zipimport_cache()
                 reload(pmodule)
-            if load_module(modname, quiet=True):
-                print("Reloaded module %s" % modname)
+            try:
+                if load_module(modname, quiet=True, **kwargs):
+                    print("Reloaded module %s" % modname)
+            except TypeError:
+                print("%s module does not support keyword arguments" % modname)                         
     elif args[0] == "unload":
         if len(args) < 2:
             print("usage: module unload <name>")
